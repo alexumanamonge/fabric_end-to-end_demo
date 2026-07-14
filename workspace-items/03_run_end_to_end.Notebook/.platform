@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "config": {
+    "logicalId": "55555555-5555-4555-8555-555555555555"
+  },
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "03_run_end_to_end",
+    "description": "Run the full demo pipeline from raw generation through Gold tables."
+  }
+}

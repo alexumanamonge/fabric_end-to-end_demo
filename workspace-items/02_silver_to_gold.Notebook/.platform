@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "config": {
+    "logicalId": "44444444-4444-4444-8444-444444444444"
+  },
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "02_silver_to_gold",
+    "description": "Create business-ready Gold tables for the semantic model and report."
+  }
+}

@@ -25,6 +25,7 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
 | `fabric\semantic-model` | Suggested DAX measures and model design. |
 | `fabric\data-agent` | Data Agent instructions and sample prompts. |
 | `fabric\governance` | Security, permissions, lineage, and governance checklist. |
+| `workspace-items` | Fabric Git integration item folders for Lakehouse and Notebook sync. |
 | `docs` | Bill of materials and demo runbook. |
 
 ## Quick start
@@ -42,6 +43,10 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
 6. Run `03_run_end_to_end.ipynb`.
 7. Create a semantic model over the Gold tables and add the measures from `fabric\semantic-model\measures.dax`.
 8. Build the Power BI report and Data Agent using `docs\automated-build-guide.md` and `docs\power-bi-report-spec.md`.
+
+## Git integration demo
+
+To demo Fabric Git integration, connect the Fabric workspace to the `workspace-items` folder in this repo, not the repo root. See `docs\fabric-git-integration-demo.md`.
 
 ## Suggested GitHub repository name
 

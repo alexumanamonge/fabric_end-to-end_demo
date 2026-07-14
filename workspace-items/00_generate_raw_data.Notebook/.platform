@@ -1,0 +1,12 @@
+{
+  "version": "2.0",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "config": {
+    "logicalId": "22222222-2222-4222-8222-222222222222"
+  },
+  "metadata": {
+    "type": "Notebook",
+    "displayName": "00_generate_raw_data",
+    "description": "Generate deterministic raw Customer 360 demo data in OneLake."
+  }
+}
