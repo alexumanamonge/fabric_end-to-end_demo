@@ -1,0 +1,16 @@
+Total Sales = SUM('gold sales_summary'[total_sales])
+
+Active Customers = SUM('gold sales_summary'[active_customers])
+
+Order Count = SUM('gold sales_summary'[order_count])
+
+Average Sales per Customer = DIVIDE([Total Sales], [Active Customers])
+
+Average Discount % = AVERAGE('gold sales_summary'[average_discount_pct])
+
+Lifetime Sales = SUM('gold customer_360'[lifetime_sales])
+
+Support Tickets = SUM('gold customer_360'[support_ticket_count])
+
+Average Satisfaction = AVERAGE('gold customer_360'[average_satisfaction_score])
+

@@ -1,0 +1,151 @@
+customer_id,customer_name,segment,industry,region_id,country,account_owner,created_date,sensitivity_tier
+C-0001,Contoso Customer 0001,Enterprise,Manufacturing,R-NA-W,United States,Avery,2025-01-06,Public
+C-0002,Contoso Customer 0002,Enterprise,Retail,R-EMEA-N,United Kingdom,Jordan,2024-04-10,Confidential
+C-0003,Contoso Customer 0003,Enterprise,Retail,R-LATAM,Costa Rica,Jordan,2025-08-10,Public
+C-0004,Contoso Customer 0004,Public Sector,Financial Services,R-NA-E,United States,Morgan,2024-05-26,Confidential
+C-0005,Contoso Customer 0005,Commercial,Technology,R-EMEA-N,United Kingdom,Riley,2024-12-31,Confidential
+C-0006,Contoso Customer 0006,Enterprise,Healthcare,R-LATAM,Costa Rica,Morgan,2024-10-17,General
+C-0007,Contoso Customer 0007,Enterprise,Healthcare,R-LATAM,Costa Rica,Taylor,2024-01-31,General
+C-0008,Contoso Customer 0008,Enterprise,Retail,R-NA-W,United States,Morgan,2024-05-18,Public
+C-0009,Contoso Customer 0009,Enterprise,Financial Services,R-NA-W,United States,Taylor,2025-12-01,Public
+C-0010,Contoso Customer 0010,SMB,Manufacturing,R-APAC-S,Singapore,Taylor,2024-10-22,Public
+C-0011,Contoso Customer 0011,Commercial,Healthcare,R-EMEA-N,United Kingdom,Avery,2025-08-19,General
+C-0012,Contoso Customer 0012,SMB,Retail,R-APAC-S,Singapore,Riley,2024-04-08,Public
+C-0013,Contoso Customer 0013,SMB,Technology,R-EMEA-N,United Kingdom,Jordan,2024-07-08,General
+C-0014,Contoso Customer 0014,Public Sector,Retail,R-NA-W,United States,Morgan,2024-12-22,Public
+C-0015,Contoso Customer 0015,Commercial,Manufacturing,R-APAC-S,Singapore,Riley,2025-11-23,General
+C-0016,Contoso Customer 0016,Public Sector,Healthcare,R-NA-E,United States,Riley,2025-12-24,Public
+C-0017,Contoso Customer 0017,Enterprise,Manufacturing,R-EMEA-N,United Kingdom,Jordan,2025-12-06,Confidential
+C-0018,Contoso Customer 0018,Enterprise,Technology,R-EMEA-N,United Kingdom,Riley,2024-03-20,Public
+C-0019,Contoso Customer 0019,Enterprise,Financial Services,R-NA-E,United States,Morgan,2025-03-31,Confidential
+C-0020,Contoso Customer 0020,Commercial,Manufacturing,R-NA-W,United States,Taylor,2025-01-13,General
+C-0021,Contoso Customer 0021,Enterprise,Manufacturing,R-APAC-S,Singapore,Taylor,2024-09-15,Confidential
+C-0022,Contoso Customer 0022,Enterprise,Financial Services,R-EMEA-N,United Kingdom,Avery,2025-11-29,Confidential
+C-0023,Contoso Customer 0023,SMB,Healthcare,R-LATAM,Costa Rica,Riley,2024-04-28,Confidential
+C-0024,Contoso Customer 0024,Commercial,Technology,R-NA-W,United States,Avery,2024-10-22,General
+C-0025,Contoso Customer 0025,Commercial,Technology,R-NA-E,United States,Morgan,2025-12-05,Public
+C-0026,Contoso Customer 0026,Enterprise,Technology,R-LATAM,Costa Rica,Riley,2024-12-26,Confidential
+C-0027,Contoso Customer 0027,Commercial,Retail,R-NA-E,United States,Morgan,2024-11-09,General
+C-0028,Contoso Customer 0028,Commercial,Retail,R-NA-E,United States,Jordan,2024-12-30,Confidential
+C-0029,Contoso Customer 0029,SMB,Healthcare,R-NA-E,United States,Avery,2024-06-21,Public
+C-0030,Contoso Customer 0030,Public Sector,Manufacturing,R-NA-W,United States,Avery,2025-07-20,Confidential
+C-0031,Contoso Customer 0031,SMB,Healthcare,R-NA-W,United States,Avery,2024-03-17,General
+C-0032,Contoso Customer 0032,Commercial,Healthcare,R-APAC-S,Singapore,Riley,2025-07-28,Confidential
+C-0033,Contoso Customer 0033,Commercial,Retail,R-EMEA-N,United Kingdom,Avery,2024-09-10,Confidential
+C-0034,Contoso Customer 0034,Commercial,Manufacturing,R-EMEA-N,United Kingdom,Riley,2025-10-16,Public
+C-0035,Contoso Customer 0035,SMB,Technology,R-APAC-S,Singapore,Riley,2024-09-29,General
+C-0036,Contoso Customer 0036,Public Sector,Retail,R-NA-W,United States,Avery,2024-10-13,General
+C-0037,Contoso Customer 0037,SMB,Retail,R-NA-E,United States,Avery,2025-10-08,Public
+C-0038,Contoso Customer 0038,SMB,Technology,R-LATAM,Costa Rica,Morgan,2025-05-31,Confidential
+C-0039,Contoso Customer 0039,Public Sector,Financial Services,R-EMEA-N,United Kingdom,Jordan,2024-02-11,General
+C-0040,Contoso Customer 0040,Public Sector,Manufacturing,R-APAC-S,Singapore,Jordan,2024-09-19,General
+C-0041,Contoso Customer 0041,Public Sector,Healthcare,R-LATAM,Costa Rica,Avery,2025-08-12,Confidential
+C-0042,Contoso Customer 0042,Commercial,Healthcare,R-EMEA-N,United Kingdom,Taylor,2025-11-19,Confidential
+C-0043,Contoso Customer 0043,Enterprise,Healthcare,R-NA-W,United States,Morgan,2024-10-20,General
+C-0044,Contoso Customer 0044,Commercial,Technology,R-EMEA-N,United Kingdom,Avery,2024-04-16,Public
+C-0045,Contoso Customer 0045,Commercial,Manufacturing,R-EMEA-N,United Kingdom,Morgan,2024-09-10,Confidential
+C-0046,Contoso Customer 0046,SMB,Technology,R-LATAM,Costa Rica,Morgan,2024-08-29,General
+C-0047,Contoso Customer 0047,Public Sector,Financial Services,R-LATAM,Costa Rica,Jordan,2024-09-08,General
+C-0048,Contoso Customer 0048,SMB,Healthcare,R-NA-W,United States,Riley,2024-05-15,General
+C-0049,Contoso Customer 0049,Commercial,Healthcare,R-NA-W,United States,Taylor,2024-06-22,Confidential
+C-0050,Contoso Customer 0050,Enterprise,Healthcare,R-LATAM,Costa Rica,Taylor,2024-07-05,Public
+C-0051,Contoso Customer 0051,Enterprise,Manufacturing,R-APAC-S,Singapore,Morgan,2025-09-08,General
+C-0052,Contoso Customer 0052,Commercial,Technology,R-EMEA-N,United Kingdom,Riley,2025-03-29,Public
+C-0053,Contoso Customer 0053,SMB,Technology,R-LATAM,Costa Rica,Morgan,2024-06-22,Public
+C-0054,Contoso Customer 0054,Enterprise,Healthcare,R-NA-E,United States,Morgan,2025-08-22,Public
+C-0055,Contoso Customer 0055,Public Sector,Technology,R-EMEA-N,United Kingdom,Taylor,2025-04-09,Confidential
+C-0056,Contoso Customer 0056,Public Sector,Retail,R-APAC-S,Singapore,Taylor,2024-10-11,Public
+C-0057,Contoso Customer 0057,SMB,Retail,R-LATAM,Costa Rica,Morgan,2024-05-28,General
+C-0058,Contoso Customer 0058,Enterprise,Manufacturing,R-EMEA-N,United Kingdom,Jordan,2025-11-14,General
+C-0059,Contoso Customer 0059,Commercial,Financial Services,R-APAC-S,Singapore,Avery,2025-12-08,Confidential
+C-0060,Contoso Customer 0060,Enterprise,Healthcare,R-NA-E,United States,Jordan,2024-09-07,Confidential
+C-0061,Contoso Customer 0061,Commercial,Technology,R-EMEA-N,United Kingdom,Riley,2025-10-16,Public
+C-0062,Contoso Customer 0062,Commercial,Retail,R-LATAM,Costa Rica,Taylor,2024-10-05,Confidential
+C-0063,Contoso Customer 0063,Commercial,Manufacturing,R-LATAM,Costa Rica,Avery,2025-02-12,Public
+C-0064,Contoso Customer 0064,Enterprise,Manufacturing,R-LATAM,Costa Rica,Jordan,2025-06-06,Public
+C-0065,Contoso Customer 0065,Commercial,Retail,R-EMEA-N,United Kingdom,Morgan,2024-10-16,Public
+C-0066,Contoso Customer 0066,Commercial,Manufacturing,R-LATAM,Costa Rica,Morgan,2024-09-01,Public
+C-0067,Contoso Customer 0067,Enterprise,Healthcare,R-EMEA-N,United Kingdom,Morgan,2025-09-25,General
+C-0068,Contoso Customer 0068,Public Sector,Healthcare,R-NA-W,United States,Riley,2024-09-18,Public
+C-0069,Contoso Customer 0069,Public Sector,Financial Services,R-EMEA-N,United Kingdom,Morgan,2025-05-18,Confidential
+C-0070,Contoso Customer 0070,Public Sector,Healthcare,R-APAC-S,Singapore,Jordan,2024-11-21,Confidential
+C-0071,Contoso Customer 0071,SMB,Healthcare,R-LATAM,Costa Rica,Jordan,2025-08-27,Confidential
+C-0072,Contoso Customer 0072,Commercial,Technology,R-EMEA-N,United Kingdom,Riley,2024-10-06,Public
+C-0073,Contoso Customer 0073,Commercial,Technology,R-NA-E,United States,Riley,2025-10-05,Public
+C-0074,Contoso Customer 0074,SMB,Technology,R-NA-E,United States,Taylor,2024-06-15,Confidential
+C-0075,Contoso Customer 0075,Public Sector,Retail,R-NA-E,United States,Riley,2024-05-26,Public
+C-0076,Contoso Customer 0076,Enterprise,Manufacturing,R-NA-W,United States,Morgan,2024-01-30,Confidential
+C-0077,Contoso Customer 0077,Commercial,Retail,R-NA-E,United States,Morgan,2024-10-11,General
+C-0078,Contoso Customer 0078,Public Sector,Retail,R-APAC-S,Singapore,Avery,2025-06-19,Confidential
+C-0079,Contoso Customer 0079,SMB,Financial Services,R-EMEA-N,United Kingdom,Morgan,2025-07-16,General
+C-0080,Contoso Customer 0080,Enterprise,Retail,R-NA-E,United States,Morgan,2025-03-28,Public
+C-0081,Contoso Customer 0081,Enterprise,Healthcare,R-EMEA-N,United Kingdom,Morgan,2025-08-29,Confidential
+C-0082,Contoso Customer 0082,Enterprise,Manufacturing,R-LATAM,Costa Rica,Jordan,2024-01-13,Public
+C-0083,Contoso Customer 0083,Public Sector,Financial Services,R-EMEA-N,United Kingdom,Avery,2025-06-22,General
+C-0084,Contoso Customer 0084,Public Sector,Technology,R-NA-W,United States,Avery,2025-04-06,Public
+C-0085,Contoso Customer 0085,Commercial,Healthcare,R-APAC-S,Singapore,Riley,2025-02-21,Confidential
+C-0086,Contoso Customer 0086,Enterprise,Technology,R-LATAM,Costa Rica,Taylor,2025-05-29,Confidential
+C-0087,Contoso Customer 0087,Commercial,Retail,R-NA-W,United States,Avery,2024-12-01,General
+C-0088,Contoso Customer 0088,Commercial,Healthcare,R-LATAM,Costa Rica,Morgan,2024-02-20,Public
+C-0089,Contoso Customer 0089,Enterprise,Technology,R-EMEA-N,United Kingdom,Jordan,2025-09-20,General
+C-0090,Contoso Customer 0090,Commercial,Financial Services,R-APAC-S,Singapore,Jordan,2024-03-29,General
+C-0091,Contoso Customer 0091,SMB,Retail,R-NA-E,United States,Riley,2025-01-25,General
+C-0092,Contoso Customer 0092,Commercial,Technology,R-NA-E,United States,Jordan,2025-07-09,Public
+C-0093,Contoso Customer 0093,SMB,Healthcare,R-APAC-S,Singapore,Taylor,2025-07-03,Confidential
+C-0094,Contoso Customer 0094,Commercial,Retail,R-NA-E,United States,Taylor,2025-02-12,Confidential
+C-0095,Contoso Customer 0095,Commercial,Healthcare,R-EMEA-N,United Kingdom,Taylor,2025-07-05,General
+C-0096,Contoso Customer 0096,SMB,Technology,R-NA-E,United States,Riley,2024-02-14,Confidential
+C-0097,Contoso Customer 0097,Enterprise,Technology,R-NA-W,United States,Jordan,2024-12-06,Confidential
+C-0098,Contoso Customer 0098,SMB,Healthcare,R-NA-W,United States,Morgan,2025-06-23,Public
+C-0099,Contoso Customer 0099,Commercial,Manufacturing,R-NA-E,United States,Morgan,2024-03-25,General
+C-0100,Contoso Customer 0100,Enterprise,Retail,R-NA-E,United States,Jordan,2025-09-01,Public
+C-0101,Contoso Customer 0101,Enterprise,Healthcare,R-NA-E,United States,Riley,2025-11-08,General
+C-0102,Contoso Customer 0102,Public Sector,Manufacturing,R-NA-W,United States,Avery,2024-06-01,Public
+C-0103,Contoso Customer 0103,Public Sector,Healthcare,R-APAC-S,Singapore,Morgan,2024-02-27,General
+C-0104,Contoso Customer 0104,SMB,Retail,R-EMEA-N,United Kingdom,Morgan,2025-06-12,Public
+C-0105,Contoso Customer 0105,Commercial,Technology,R-APAC-S,Singapore,Morgan,2024-06-13,Public
+C-0106,Contoso Customer 0106,Public Sector,Healthcare,R-EMEA-N,United Kingdom,Taylor,2025-02-27,General
+C-0107,Contoso Customer 0107,Enterprise,Healthcare,R-NA-W,United States,Avery,2025-10-06,Public
+C-0108,Contoso Customer 0108,Commercial,Retail,R-APAC-S,Singapore,Riley,2025-06-11,Public
+C-0109,Contoso Customer 0109,Enterprise,Financial Services,R-EMEA-N,United Kingdom,Taylor,2025-08-31,General
+C-0110,Contoso Customer 0110,Public Sector,Financial Services,R-NA-E,United States,Riley,2024-05-23,Confidential
+C-0111,Contoso Customer 0111,Enterprise,Financial Services,R-NA-W,United States,Riley,2025-07-31,Confidential
+C-0112,Contoso Customer 0112,Enterprise,Technology,R-APAC-S,Singapore,Jordan,2025-01-15,Confidential
+C-0113,Contoso Customer 0113,SMB,Financial Services,R-LATAM,Costa Rica,Riley,2025-01-04,General
+C-0114,Contoso Customer 0114,Enterprise,Retail,R-NA-E,United States,Jordan,2025-02-17,Public
+C-0115,Contoso Customer 0115,Enterprise,Financial Services,R-NA-E,United States,Avery,2025-01-13,Public
+C-0116,Contoso Customer 0116,Public Sector,Technology,R-APAC-S,Singapore,Riley,2024-07-13,Public
+C-0117,Contoso Customer 0117,Enterprise,Manufacturing,R-EMEA-N,United Kingdom,Morgan,2025-09-07,Confidential
+C-0118,Contoso Customer 0118,SMB,Retail,R-APAC-S,Singapore,Riley,2025-06-24,Confidential
+C-0119,Contoso Customer 0119,Public Sector,Healthcare,R-NA-W,United States,Morgan,2025-02-14,Public
+C-0120,Contoso Customer 0120,Commercial,Technology,R-LATAM,Costa Rica,Jordan,2024-03-17,Confidential
+C-0121,Contoso Customer 0121,Public Sector,Manufacturing,R-NA-W,United States,Riley,2025-07-19,General
+C-0122,Contoso Customer 0122,Commercial,Financial Services,R-NA-E,United States,Riley,2025-06-28,Confidential
+C-0123,Contoso Customer 0123,Commercial,Financial Services,R-NA-W,United States,Avery,2024-11-11,General
+C-0124,Contoso Customer 0124,Enterprise,Manufacturing,R-LATAM,Costa Rica,Jordan,2024-10-22,General
+C-0125,Contoso Customer 0125,SMB,Manufacturing,R-NA-E,United States,Avery,2025-11-17,General
+C-0126,Contoso Customer 0126,Public Sector,Manufacturing,R-NA-W,United States,Morgan,2025-06-20,General
+C-0127,Contoso Customer 0127,Commercial,Manufacturing,R-APAC-S,Singapore,Avery,2024-06-23,General
+C-0128,Contoso Customer 0128,Commercial,Healthcare,R-EMEA-N,United Kingdom,Taylor,2025-01-22,General
+C-0129,Contoso Customer 0129,Public Sector,Manufacturing,R-NA-E,United States,Riley,2025-04-22,Public
+C-0130,Contoso Customer 0130,Public Sector,Retail,R-NA-E,United States,Taylor,2024-04-29,General
+C-0131,Contoso Customer 0131,Public Sector,Technology,R-NA-E,United States,Avery,2025-06-06,Public
+C-0132,Contoso Customer 0132,Enterprise,Technology,R-LATAM,Costa Rica,Morgan,2024-10-26,Public
+C-0133,Contoso Customer 0133,Commercial,Manufacturing,R-NA-E,United States,Riley,2024-04-10,General
+C-0134,Contoso Customer 0134,Public Sector,Healthcare,R-NA-E,United States,Taylor,2025-06-12,Public
+C-0135,Contoso Customer 0135,Enterprise,Technology,R-NA-E,United States,Taylor,2025-05-19,Confidential
+C-0136,Contoso Customer 0136,Public Sector,Manufacturing,R-NA-E,United States,Morgan,2025-05-31,General
+C-0137,Contoso Customer 0137,Enterprise,Financial Services,R-LATAM,Costa Rica,Riley,2025-06-25,Confidential
+C-0138,Contoso Customer 0138,Commercial,Retail,R-NA-W,United States,Jordan,2025-09-04,Confidential
+C-0139,Contoso Customer 0139,Public Sector,Healthcare,R-NA-E,United States,Riley,2024-01-14,Public
+C-0140,Contoso Customer 0140,Enterprise,Manufacturing,R-EMEA-N,United Kingdom,Taylor,2025-07-27,Confidential
+C-0141,Contoso Customer 0141,Public Sector,Retail,R-NA-W,United States,Riley,2025-10-16,Public
+C-0142,Contoso Customer 0142,Public Sector,Retail,R-APAC-S,Singapore,Morgan,2024-05-14,Confidential
+C-0143,Contoso Customer 0143,Enterprise,Technology,R-APAC-S,Singapore,Taylor,2025-02-20,Confidential
+C-0144,Contoso Customer 0144,Enterprise,Financial Services,R-NA-W,United States,Jordan,2024-03-05,Public
+C-0145,Contoso Customer 0145,Enterprise,Technology,R-EMEA-N,United Kingdom,Morgan,2025-07-06,Confidential
+C-0146,Contoso Customer 0146,Public Sector,Retail,R-NA-W,United States,Taylor,2024-07-09,Public
+C-0147,Contoso Customer 0147,Commercial,Manufacturing,R-LATAM,Costa Rica,Riley,2025-07-17,Confidential
+C-0148,Contoso Customer 0148,SMB,Technology,R-EMEA-N,United Kingdom,Jordan,2024-10-04,Confidential
+C-0149,Contoso Customer 0149,SMB,Technology,R-EMEA-N,United Kingdom,Jordan,2024-08-24,Confidential
+C-0150,Contoso Customer 0150,Enterprise,Technology,R-APAC-S,Singapore,Morgan,2024-03-13,Public
