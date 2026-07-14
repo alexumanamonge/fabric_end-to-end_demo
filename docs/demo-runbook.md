@@ -8,21 +8,16 @@
 4. Show workspace roles and explain least privilege.
 5. Apply or discuss sensitivity labels and endorsement.
 
-## 2. Ingestion
+## 2. Automated ingestion and transformation
 
 1. Create Lakehouse `lh_customer360`.
-2. Upload the CSV files from `data\bronze` to `Files\bronze`.
-3. Demonstrate or explain:
-   - Shortcut for `regions_shortcut.csv`.
-   - Mirroring for `customers_mirrored.csv` and `products_mirrored.csv`.
-   - Copy Job for `orders_copy_job.csv` and `support_tickets_copy_job.csv`.
+2. Import the notebooks from `fabric\notebooks`.
+3. Attach each notebook to `lh_customer360`.
+4. Run `03_run_end_to_end.ipynb`.
+5. Show raw CSV data under `Files/raw/customer360`.
+6. Show Bronze raw tables, Silver cleansed/joined tables, and Gold business tables.
 
-## 3. Medallion transformation
-
-1. Create notebook `nb_customer360_medallion`.
-2. Attach it to `lh_customer360`.
-3. Run `fabric\sql\medallion_customer360.sql`.
-4. Show Bronze raw tables, Silver cleansed tables, and Gold business tables.
+Use `docs\automated-build-guide.md` as the detailed build procedure.
 
 ## 4. Governance and lineage
 
@@ -47,4 +42,3 @@
 2. Use the instructions in `fabric\data-agent\instructions.md`.
 3. Ask the recommended starter questions.
 4. Explain that agent answers are constrained by governed data permissions.
-

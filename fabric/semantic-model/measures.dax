@@ -14,3 +14,6 @@ Support Tickets = SUM('gold customer_360'[support_ticket_count])
 
 Average Satisfaction = AVERAGE('gold customer_360'[average_satisfaction_score])
 
+Critical Tickets = SUM('gold customer_360'[critical_ticket_count])
+
+Customer Count = DISTINCTCOUNT('gold customer_360'[customer_id])
