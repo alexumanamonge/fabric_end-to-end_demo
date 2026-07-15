@@ -28,7 +28,7 @@ LOGICAL_IDS = {
 def platform(display_name: str, item_type: str, description: str) -> dict[str, object]:
     return {
         "version": "2.0",
-        "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+        "$schema": "https://developer.microsoft.com/json-schemas/fabric/platform/platformProperties.json",
         "config": {
             "logicalId": LOGICAL_IDS.get(display_name, str(uuid.uuid4())),
         },
@@ -90,15 +90,6 @@ def main() -> None:
     write_json(
         lakehouse_dir / ".platform",
         platform("lh_customer360", "Lakehouse", "Customer 360 demo Lakehouse for Bronze, Silver, and Gold tables."),
-    )
-    write_json(
-        lakehouse_dir / "alm.settings.json",
-        {
-            "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/lakehouse/almSettings/1.0.0/schema.json",
-            "gitIntegration": {
-                "trackedObjectTypes": ["Shortcuts"],
-            },
-        },
     )
 
     for name, description in NOTEBOOKS:

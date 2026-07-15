@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/platform/platformProperties.json",
   "config": {
     "logicalId": "22222222-2222-4222-8222-222222222222"
   },
