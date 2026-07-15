@@ -1,0 +1,5 @@
+{
+  "type": "Notebook",
+  "displayName": "03_run_end_to_end",
+  "description": "Run the full demo pipeline from raw generation through Gold tables."
+}

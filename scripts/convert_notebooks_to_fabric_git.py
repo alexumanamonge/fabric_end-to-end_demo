@@ -25,18 +25,18 @@ LOGICAL_IDS = {
 }
 
 
-def platform(display_name: str, item_type: str, description: str) -> dict[str, object]:
+def metadata(display_name: str, item_type: str, description: str) -> dict[str, object]:
     return {
-        "version": "2.0",
-        "$schema": "https://developer.microsoft.com/json-schemas/fabric/platform/platformProperties.json",
-        "config": {
-            "logicalId": LOGICAL_IDS.get(display_name, str(uuid.uuid4())),
-        },
-        "metadata": {
-            "type": item_type,
-            "displayName": display_name,
-            "description": description,
-        },
+        "type": item_type,
+        "displayName": display_name,
+        "description": description,
+    }
+
+
+def config(display_name: str) -> dict[str, object]:
+    return {
+        "version": "1.0",
+        "logicalId": LOGICAL_IDS.get(display_name, str(uuid.uuid4())),
     }
 
 
@@ -87,15 +87,14 @@ def convert_notebook(ipynb_path: Path) -> str:
 
 def main() -> None:
     lakehouse_dir = ITEM_ROOT / "lh_customer360.Lakehouse"
-    write_json(
-        lakehouse_dir / ".platform",
-        platform("lh_customer360", "Lakehouse", "Customer 360 demo Lakehouse for Bronze, Silver, and Gold tables."),
-    )
+    write_json(lakehouse_dir / "item.metadata.json", metadata("lh_customer360", "Lakehouse", "Customer 360 demo Lakehouse for Bronze, Silver, and Gold tables."))
+    write_json(lakehouse_dir / "item.config.json", config("lh_customer360"))
 
     for name, description in NOTEBOOKS:
         item_dir = ITEM_ROOT / f"{name}.Notebook"
         item_dir.mkdir(parents=True, exist_ok=True)
-        write_json(item_dir / ".platform", platform(name, "Notebook", description))
+        write_json(item_dir / "item.metadata.json", metadata(name, "Notebook", description))
+        write_json(item_dir / "item.config.json", config(name))
         content = convert_notebook(NOTEBOOK_SOURCE / f"{name}.ipynb")
         (item_dir / "notebook-content.py").write_text(content, encoding="utf-8")
 

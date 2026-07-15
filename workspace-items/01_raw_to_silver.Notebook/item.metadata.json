@@ -1,0 +1,5 @@
+{
+  "type": "Notebook",
+  "displayName": "01_raw_to_silver",
+  "description": "Land Bronze raw tables and create cleansed/joined Silver tables."
+}
