@@ -19,7 +19,7 @@
 
 # # 03 - Run end-to-end
 # 
-# Optional orchestration notebook. Import all notebooks into the same Fabric workspace and run this one to build the complete demo pipeline.
+# Optional orchestration notebook. Run this one to build the complete demo pipeline across `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
 
 # CELL ********************
 
@@ -40,15 +40,47 @@ for child_nb in [
         raise RuntimeError(f"Child notebook '{child_nb}' failed. See its last run for details.") from e
 
 # If all child notebooks succeed, show row counts from key tables
-query = """
-SELECT 'bronze.customers_raw'   AS table_name, count(*) AS row_count FROM bronze.customers_raw
-UNION ALL SELECT 'silver.customer_orders', count(*) FROM silver.customer_orders
-UNION ALL SELECT 'gold.sales_summary',    count(*) FROM gold.sales_summary
-UNION ALL SELECT 'gold.customer_360',     count(*) FROM gold.customer_360
-UNION ALL SELECT 'gold.executive_kpis',   count(*) FROM gold.executive_kpis
-"""
+WORKSPACE_NAME = ""
 
-display(spark.sql(query))
+
+def current_workspace_name() -> str:
+    if WORKSPACE_NAME:
+        return WORKSPACE_NAME
+    try:
+        import notebookutils
+
+        context = notebookutils.runtime.context
+        if callable(context):
+            context = context()
+        if isinstance(context, dict):
+            workspace_name = context.get("currentWorkspaceName") or context.get("workspaceName")
+            if workspace_name:
+                return workspace_name
+    except Exception:
+        pass
+    raise ValueError("Set WORKSPACE_NAME to your Fabric workspace name before running this notebook.")
+
+
+def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
+    return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
+
+
+def delta_count(lakehouse_name: str, table_name: str) -> int:
+    return spark.read.format("delta").load(lakehouse_path(lakehouse_name, f"Tables/{table_name}")).count()
+
+
+display(
+    spark.createDataFrame(
+        [
+            ("LH_Bronze.customers_raw", delta_count("LH_Bronze", "customers_raw")),
+            ("LH_Silver.customer_orders", delta_count("LH_Silver", "customer_orders")),
+            ("LH_Gold.sales_summary", delta_count("LH_Gold", "sales_summary")),
+            ("LH_Gold.customer_360", delta_count("LH_Gold", "customer_360")),
+            ("LH_Gold.executive_kpis", delta_count("LH_Gold", "executive_kpis")),
+        ],
+        ["table_name", "row_count"],
+    )
+)
 
 
 # METADATA ********************

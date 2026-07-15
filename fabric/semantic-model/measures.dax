@@ -1,19 +1,19 @@
-Total Sales = SUM('gold sales_summary'[total_sales])
+Total Sales = SUM('sales_summary'[total_sales])
 
-Active Customers = SUM('gold sales_summary'[active_customers])
+Active Customers = SUM('sales_summary'[active_customers])
 
-Order Count = SUM('gold sales_summary'[order_count])
+Order Count = SUM('sales_summary'[order_count])
 
 Average Sales per Customer = DIVIDE([Total Sales], [Active Customers])
 
-Average Discount % = AVERAGE('gold sales_summary'[average_discount_pct])
+Average Discount % = AVERAGE('sales_summary'[average_discount_pct])
 
-Lifetime Sales = SUM('gold customer_360'[lifetime_sales])
+Lifetime Sales = SUM('customer_360'[lifetime_sales])
 
-Support Tickets = SUM('gold customer_360'[support_ticket_count])
+Support Tickets = SUM('customer_360'[support_ticket_count])
 
-Average Satisfaction = AVERAGE('gold customer_360'[average_satisfaction_score])
+Average Satisfaction = AVERAGE('customer_360'[average_satisfaction_score])
 
-Critical Tickets = SUM('gold customer_360'[critical_ticket_count])
+Critical Tickets = SUM('customer_360'[critical_ticket_count])
 
-Customer Count = DISTINCTCOUNT('gold customer_360'[customer_id])
+Customer Count = DISTINCTCOUNT('customer_360'[customer_id])

@@ -8,14 +8,9 @@
 # META   },
 # META   "dependencies": {
 # META     "lakehouse": {
-# META       "default_lakehouse": "f42ffc3d-869e-463b-a2c9-101372a1342d",
-# META       "default_lakehouse_name": "lh_customer360",
-# META       "default_lakehouse_workspace_id": "c60a59f4-22d9-485d-a255-352ca532bc92",
-# META       "known_lakehouses": [
-# META         {
-# META           "id": "f42ffc3d-869e-463b-a2c9-101372a1342d"
-# META         }
-# META       ]
+# META       "default_lakehouse_name": "",
+# META       "default_lakehouse_workspace_id": "",
+# META       "known_lakehouses": []
 # META     }
 # META   }
 # META }
@@ -24,7 +19,7 @@
 
 # # 00 - Generate raw demo data
 # 
-# Attach this notebook to Lakehouse `lh_customer360`. It creates deterministic raw CSV folders under `Files/raw/customer360` so the rest of the demo can run without any external source-system dependency.
+# Creates deterministic raw CSV folders in Lakehouse `LH_Bronze` under `Files/raw/customer360` so the rest of the demo can run without any external source-system dependency.
 
 # CELL ********************
 
@@ -32,9 +27,33 @@ from datetime import date, timedelta
 import random
 from pyspark.sql import Row
 
-# Use the default lakehouse Files root for portability in Fabric
-# ("Files/..." is automatically mapped to the default lakehouse's Files folder)
-RAW_BASE = "Files/raw/customer360"
+WORKSPACE_NAME = ""
+BRONZE_LAKEHOUSE = "LH_Bronze"
+
+
+def current_workspace_name() -> str:
+    if WORKSPACE_NAME:
+        return WORKSPACE_NAME
+    try:
+        import notebookutils
+
+        context = notebookutils.runtime.context
+        if callable(context):
+            context = context()
+        if isinstance(context, dict):
+            workspace_name = context.get("currentWorkspaceName") or context.get("workspaceName")
+            if workspace_name:
+                return workspace_name
+    except Exception:
+        pass
+    raise ValueError("Set WORKSPACE_NAME to your Fabric workspace name before running this notebook.")
+
+
+def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
+    return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
+
+
+RAW_BASE = lakehouse_path(BRONZE_LAKEHOUSE, "Files/raw/customer360")
 SEED = 20260714
 rng = random.Random(SEED)
 

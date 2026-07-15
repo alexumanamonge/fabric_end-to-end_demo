@@ -10,7 +10,7 @@ Contoso Retail wants a governed Customer 360 platform. Data arrives through thre
 
 - **Shortcut**: external sales/region reference files virtualized into OneLake.
 - **Mirroring**: operational customer and product data replicated into Fabric.
-- **Copy Job**: batch order and support-ticket files loaded into the Lakehouse.
+- **Copy Job**: batch order and support-ticket files loaded into the Bronze Lakehouse.
 
 The data is transformed through Bronze, Silver, and Gold layers, then consumed through a Direct Lake semantic model, Power BI report, and a governed Data Agent.
 
@@ -20,8 +20,7 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
 |---|---|
 | `scripts\generate_demo_data.py` | Generates deterministic synthetic CSV data for the demo. |
 | `data\bronze` | Generated raw source files for Lakehouse ingestion. |
-| `fabric\notebooks` | Runnable Fabric notebooks for raw generation, Silver processing, Gold aggregation, and orchestration. |
-| `fabric\sql` | Optional Spark SQL script for Bronze/Silver/Gold tables. |
+| `*.Notebook` | Git-synced Fabric notebooks for raw generation, Silver processing, Gold aggregation, and orchestration. |
 | `fabric\semantic-model` | Suggested DAX measures and model design. |
 | `fabric\data-agent` | Data Agent instructions and sample prompts. |
 | `fabric\governance` | Security, permissions, lineage, and governance checklist. |
@@ -36,11 +35,11 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
    ```
 
 2. Create a Fabric workspace named `Fabric End-to-End Demo`.
-3. Create a Lakehouse named `lh_customer360`.
-4. Import the notebooks from `fabric\notebooks`.
-5. Attach the notebooks to `lh_customer360`.
+3. Create or sync Lakehouses named `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
+4. Pull the Git-connected `*.Notebook` items from Fabric Source control.
+5. If needed, set `WORKSPACE_NAME` in each notebook to your Fabric workspace name.
 6. Run `03_run_end_to_end.ipynb`.
-7. Create a semantic model over the Gold tables and add the measures from `fabric\semantic-model\measures.dax`.
+7. Create a semantic model over the `LH_Gold` tables and add the measures from `fabric\semantic-model\measures.dax`.
 8. Build the Power BI report and Data Agent using `docs\automated-build-guide.md` and `docs\power-bi-report-spec.md`.
 
 ## Git integration demo

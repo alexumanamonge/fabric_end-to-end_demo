@@ -8,14 +8,9 @@
 # META   },
 # META   "dependencies": {
 # META     "lakehouse": {
-# META       "default_lakehouse": "f42ffc3d-869e-463b-a2c9-101372a1342d",
-# META       "default_lakehouse_name": "lh_customer360",
-# META       "default_lakehouse_workspace_id": "c60a59f4-22d9-485d-a255-352ca532bc92",
-# META       "known_lakehouses": [
-# META         {
-# META           "id": "f42ffc3d-869e-463b-a2c9-101372a1342d"
-# META         }
-# META       ]
+# META       "default_lakehouse_name": "",
+# META       "default_lakehouse_workspace_id": "",
+# META       "known_lakehouses": []
 # META     }
 # META   }
 # META }
@@ -24,16 +19,42 @@
 
 # # 01 - Raw to Bronze and Silver
 # 
-# Reads raw CSV folders from OneLake, lands immutable Bronze Delta tables, then creates cleansed/joined Silver tables.
+# Reads raw CSV folders from `LH_Bronze`, lands immutable Bronze Delta tables in `LH_Bronze`, then creates cleansed/joined Silver tables in `LH_Silver`.
 
 # CELL ********************
 
 from pyspark.sql import functions as F
 
-RAW_BASE = "Files/raw/customer360"
+WORKSPACE_NAME = ""
+BRONZE_LAKEHOUSE = "LH_Bronze"
+SILVER_LAKEHOUSE = "LH_Silver"
 
-spark.sql("CREATE DATABASE IF NOT EXISTS bronze")
-spark.sql("CREATE DATABASE IF NOT EXISTS silver")
+
+def current_workspace_name() -> str:
+    if WORKSPACE_NAME:
+        return WORKSPACE_NAME
+    try:
+        import notebookutils
+
+        context = notebookutils.runtime.context
+        if callable(context):
+            context = context()
+        if isinstance(context, dict):
+            workspace_name = context.get("currentWorkspaceName") or context.get("workspaceName")
+            if workspace_name:
+                return workspace_name
+    except Exception:
+        pass
+    raise ValueError("Set WORKSPACE_NAME to your Fabric workspace name before running this notebook.")
+
+
+def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
+    return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
+
+
+RAW_BASE = lakehouse_path(BRONZE_LAKEHOUSE, "Files/raw/customer360")
+BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, "Tables")
+SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, "Tables")
 
 def read_raw(entity: str):
     return (
@@ -49,11 +70,11 @@ raw_products = read_raw("products")
 raw_orders = read_raw("orders")
 raw_tickets = read_raw("support_tickets")
 
-raw_regions.write.mode("overwrite").format("delta").saveAsTable("bronze.regions_raw")
-raw_customers.write.mode("overwrite").format("delta").saveAsTable("bronze.customers_raw")
-raw_products.write.mode("overwrite").format("delta").saveAsTable("bronze.products_raw")
-raw_orders.write.mode("overwrite").format("delta").saveAsTable("bronze.orders_raw")
-raw_tickets.write.mode("overwrite").format("delta").saveAsTable("bronze.support_tickets_raw")
+raw_regions.write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/regions_raw")
+raw_customers.write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/customers_raw")
+raw_products.write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/products_raw")
+raw_orders.write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/orders_raw")
+raw_tickets.write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/support_tickets_raw")
 
 silver_customers = (
     raw_customers
@@ -123,21 +144,22 @@ silver_tickets = (
     .withColumn("satisfaction_score", F.col("satisfaction_score").cast("int"))
 )
 
-silver_customers.write.mode("overwrite").format("delta").saveAsTable("silver.customers")
-silver_products.write.mode("overwrite").format("delta").saveAsTable("silver.products")
-silver_orders.write.mode("overwrite").format("delta").saveAsTable("silver.orders")
-silver_customer_orders.write.mode("overwrite").format("delta").saveAsTable("silver.customer_orders")
-silver_tickets.write.mode("overwrite").format("delta").saveAsTable("silver.support_tickets")
+silver_customers.write.mode("overwrite").format("delta").save(f"{SILVER_TABLES}/customers")
+silver_products.write.mode("overwrite").format("delta").save(f"{SILVER_TABLES}/products")
+silver_orders.write.mode("overwrite").format("delta").save(f"{SILVER_TABLES}/orders")
+silver_customer_orders.write.mode("overwrite").format("delta").save(f"{SILVER_TABLES}/customer_orders")
+silver_tickets.write.mode("overwrite").format("delta").save(f"{SILVER_TABLES}/support_tickets")
 
 display(
-    spark.sql(
-        """
-SELECT 'bronze.customers_raw' AS table_name, count(*) AS row_count FROM bronze.customers_raw
-UNION ALL SELECT 'bronze.orders_raw', count(*) FROM bronze.orders_raw
-UNION ALL SELECT 'silver.customers', count(*) FROM silver.customers
-UNION ALL SELECT 'silver.customer_orders', count(*) FROM silver.customer_orders
-UNION ALL SELECT 'silver.support_tickets', count(*) FROM silver.support_tickets
-"""
+    spark.createDataFrame(
+        [
+            ("LH_Bronze.customers_raw", raw_customers.count()),
+            ("LH_Bronze.orders_raw", raw_orders.count()),
+            ("LH_Silver.customers", silver_customers.count()),
+            ("LH_Silver.customer_orders", silver_customer_orders.count()),
+            ("LH_Silver.support_tickets", silver_tickets.count()),
+        ],
+        ["table_name", "row_count"],
     )
 )
 

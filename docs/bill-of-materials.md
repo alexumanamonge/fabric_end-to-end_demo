@@ -5,7 +5,9 @@
 | Item | Suggested name | Purpose |
 |---|---|---|
 | Workspace | `Fabric End-to-End Demo` | Governed collaboration boundary |
-| Lakehouse | `lh_customer360` | OneLake storage and medallion tables |
+| Lakehouse | `LH_Bronze` | Raw files and Bronze raw Delta tables |
+| Lakehouse | `LH_Silver` | Cleansed and joined Silver Delta tables |
+| Lakehouse | `LH_Gold` | Curated Gold tables for consumption |
 | Shortcut | `regions_shortcut` | Demonstrate virtualization without copy |
 | Mirrored database | `mirror_customer_ops` | Demonstrate operational replication |
 | Copy Job | `copy_orders_support_to_bronze` | Demonstrate managed batch ingestion |
@@ -38,4 +40,3 @@
 - Microsoft Fabric tenant with capacity enabled.
 - Permission to create workspaces, Lakehouses, notebooks, semantic models, reports, and Data Agents.
 - Optional source systems for live shortcut/mirroring demos. If unavailable, use the generated CSV files as stand-ins and explain the intended ingestion pattern.
-

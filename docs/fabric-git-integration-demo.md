@@ -7,7 +7,7 @@ Fabric Git integration syncs supported Fabric item definitions. It does **not** 
 Use **Fabric-first Git integration**:
 
 1. Connect the Fabric workspace to this repo.
-2. Create the Lakehouse and notebooks in Fabric.
+2. Create the Lakehouses and notebooks in Fabric.
 3. Commit those Fabric-created items back to Git from the Fabric Source control pane.
 4. Make a small notebook change in GitHub.
 5. Pull the change back into Fabric.
@@ -30,7 +30,7 @@ Fabric should create valid item folders in Git after you commit from the Fabric 
 
 | Item | Expected behavior |
 |---|---|
-| Lakehouse created in Fabric | Commits Lakehouse metadata only |
+| Lakehouses created in Fabric | Commit Lakehouse metadata only |
 | Notebooks created/imported in Fabric | Commits `*.Notebook` folders with Fabric-generated system files |
 | Lakehouse files/tables | Not synced by Git; generated when notebooks run |
 
@@ -39,10 +39,10 @@ Fabric should create valid item folders in Git after you commit from the Fabric 
 1. In Fabric workspace settings, connect to GitHub repo `alexumanamonge/fabric_end-to-end_demo`.
 2. Select branch `main`.
 3. Select repository root `/`.
-4. Create Lakehouse `lh_customer360` in Fabric.
-5. Create/import the four notebooks from `fabric\notebooks`.
-6. Attach notebooks to `lh_customer360`.
-7. In Source control, commit the Fabric-created Lakehouse and notebooks to Git.
+4. Create Lakehouses `LH_Bronze`, `LH_Silver`, and `LH_Gold` in Fabric.
+5. Pull or create the four notebooks.
+6. Run `03_run_end_to_end`.
+7. In Source control, commit the Fabric-created Lakehouses and notebooks to Git.
 8. Make a small change in GitHub, such as editing a markdown cell or adding a comment to one notebook.
 9. Return to Fabric Source control and pull the incoming change.
 10. Run `03_run_end_to_end`.

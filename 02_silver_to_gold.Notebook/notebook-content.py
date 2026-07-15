@@ -8,14 +8,9 @@
 # META   },
 # META   "dependencies": {
 # META     "lakehouse": {
-# META       "default_lakehouse": "f42ffc3d-869e-463b-a2c9-101372a1342d",
-# META       "default_lakehouse_name": "lh_customer360",
-# META       "default_lakehouse_workspace_id": "c60a59f4-22d9-485d-a255-352ca532bc92",
-# META       "known_lakehouses": [
-# META         {
-# META           "id": "f42ffc3d-869e-463b-a2c9-101372a1342d"
-# META         }
-# META       ]
+# META       "default_lakehouse_name": "",
+# META       "default_lakehouse_workspace_id": "",
+# META       "known_lakehouses": []
 # META     }
 # META   }
 # META }
@@ -24,20 +19,47 @@
 
 # # 02 - Silver to Gold
 # 
-# Creates business-ready Gold tables that are intended to back the semantic model, Power BI report, and Data Agent.
+# Reads conformed Silver tables from `LH_Silver` and creates business-ready Gold tables in `LH_Gold` for the semantic model, Power BI report, and Data Agent.
 
 # CELL ********************
 
 from pyspark.sql import functions as F
 
-# Ensure the gold database exists
-spark.sql("CREATE DATABASE IF NOT EXISTS gold")
+WORKSPACE_NAME = ""
+SILVER_LAKEHOUSE = "LH_Silver"
+GOLD_LAKEHOUSE = "LH_Gold"
 
-# Read required Silver tables
-customer_orders = spark.table("silver.customer_orders")
-customers = spark.table("silver.customers")
-orders = spark.table("silver.orders")
-tickets = spark.table("silver.support_tickets")
+
+def current_workspace_name() -> str:
+    if WORKSPACE_NAME:
+        return WORKSPACE_NAME
+    try:
+        import notebookutils
+
+        context = notebookutils.runtime.context
+        if callable(context):
+            context = context()
+        if isinstance(context, dict):
+            workspace_name = context.get("currentWorkspaceName") or context.get("workspaceName")
+            if workspace_name:
+                return workspace_name
+    except Exception:
+        pass
+    raise ValueError("Set WORKSPACE_NAME to your Fabric workspace name before running this notebook.")
+
+
+def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
+    return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
+
+
+SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, "Tables")
+GOLD_TABLES = lakehouse_path(GOLD_LAKEHOUSE, "Tables")
+
+# Read required Silver tables from LH_Silver.
+customer_orders = spark.read.format("delta").load(f"{SILVER_TABLES}/customer_orders")
+customers = spark.read.format("delta").load(f"{SILVER_TABLES}/customers")
+orders = spark.read.format("delta").load(f"{SILVER_TABLES}/orders")
+tickets = spark.read.format("delta").load(f"{SILVER_TABLES}/support_tickets")
 
 # Gold: sales summary by geo/region/month
 gold_sales_summary = (
@@ -114,19 +136,20 @@ gold_executive_kpis = spark.sql(
     """
 )
 
-# Persist Gold tables as Delta
-gold_sales_summary.write.mode("overwrite").format("delta").saveAsTable("gold.sales_summary")
-gold_customer_360.write.mode("overwrite").format("delta").saveAsTable("gold.customer_360")
-gold_executive_kpis.write.mode("overwrite").format("delta").saveAsTable("gold.executive_kpis")
+# Persist Gold tables as Delta in LH_Gold.
+gold_sales_summary.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/sales_summary")
+gold_customer_360.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/customer_360")
+gold_executive_kpis.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/executive_kpis")
 
 # Simple row count sanity check
 display(
-    spark.sql(
-        """
-        SELECT 'gold.sales_summary' AS table_name, COUNT(*) AS row_count FROM gold.sales_summary
-        UNION ALL SELECT 'gold.customer_360', COUNT(*) FROM gold.customer_360
-        UNION ALL SELECT 'gold.executive_kpis', COUNT(*) FROM gold.executive_kpis
-        """
+    spark.createDataFrame(
+        [
+            ("LH_Gold.sales_summary", gold_sales_summary.count()),
+            ("LH_Gold.customer_360", gold_customer_360.count()),
+            ("LH_Gold.executive_kpis", gold_executive_kpis.count()),
+        ],
+        ["table_name", "row_count"],
     )
 )
 

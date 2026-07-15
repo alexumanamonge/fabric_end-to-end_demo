@@ -1,6 +1,6 @@
 # Semantic model field list
 
-## `gold.sales_summary`
+## `LH_Gold.sales_summary`
 
 | Column | Type | Recommended use |
 |---|---|---|
@@ -17,7 +17,7 @@
 | `order_count` | Whole number | Hidden; use `Order Count` measure |
 | `average_discount_pct` | Decimal | Hidden; use `Average Discount %` measure |
 
-## `gold.customer_360`
+## `LH_Gold.customer_360`
 
 | Column | Type | Recommended use |
 |---|---|---|
@@ -34,4 +34,3 @@
 | `support_ticket_count` | Whole number | Hidden; use `Support Tickets` measure |
 | `average_satisfaction_score` | Decimal | Hidden; use `Average Satisfaction` measure |
 | `critical_ticket_count` | Whole number | Hidden; use `Critical Tickets` measure |
-

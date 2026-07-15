@@ -10,25 +10,25 @@
 
 ## 2. Automated ingestion and transformation
 
-1. Create Lakehouse `lh_customer360`.
-2. Import the notebooks from `fabric\notebooks`.
-3. Attach each notebook to `lh_customer360`.
-4. Run `03_run_end_to_end.ipynb`.
-5. Show raw CSV data under `Files/raw/customer360`.
-6. Show Bronze raw tables, Silver cleansed/joined tables, and Gold business tables.
+1. Create or sync Lakehouses `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
+2. Pull the Git-connected notebooks from Source control.
+3. If Fabric cannot resolve the workspace name automatically, set `WORKSPACE_NAME` in each notebook.
+4. Run `03_run_end_to_end`.
+5. Show raw CSV data under `LH_Bronze > Files/raw/customer360`.
+6. Show Bronze raw tables in `LH_Bronze`, Silver cleansed/joined tables in `LH_Silver`, and Gold business tables in `LH_Gold`.
 
 Use `docs\automated-build-guide.md` as the detailed build procedure.
 
 ## 4. Governance and lineage
 
 1. Open workspace lineage view.
-2. Show the chain from ingestion to Lakehouse to notebook to semantic model to report.
+2. Show the chain from Bronze Lakehouse to Silver Lakehouse to Gold Lakehouse to semantic model to report.
 3. Open item permissions and explain access control.
 4. Promote or certify the semantic model.
 
 ## 5. Semantic model and Power BI
 
-1. Create a semantic model from Gold tables.
+1. Create a semantic model from `LH_Gold` tables.
 2. Add measures from `fabric\semantic-model\measures.dax`.
 3. Build report pages:
    - Executive Overview
