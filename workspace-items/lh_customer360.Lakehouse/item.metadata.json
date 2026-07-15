@@ -1,5 +1,0 @@
-{
-  "type": "Lakehouse",
-  "displayName": "lh_customer360",
-  "description": "Customer 360 demo Lakehouse for Bronze, Silver, and Gold tables."
-}

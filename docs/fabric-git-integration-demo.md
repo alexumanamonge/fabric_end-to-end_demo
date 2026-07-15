@@ -2,43 +2,51 @@
 
 Fabric Git integration syncs supported Fabric item definitions. It does **not** sync Lakehouse Files or Delta table data.
 
+## Recommended approach for tomorrow's demo
+
+Use **Fabric-first Git integration**:
+
+1. Connect the Fabric workspace to this repo.
+2. Create the Lakehouse and notebooks in Fabric.
+3. Commit those Fabric-created items back to Git from the Fabric Source control pane.
+4. Make a small notebook change in GitHub.
+5. Pull the change back into Fabric.
+
+This avoids hand-authored system files and lets Fabric generate valid item metadata.
+
 ## Recommended repo folder for Fabric connection
 
-When connecting the workspace to Git, point Fabric to this repository folder:
+Connect the Fabric workspace to this repository folder:
 
 ```text
-workspace-items
+/
 ```
 
-That folder contains Fabric-style item folders:
-
-```text
-lh_customer360.Lakehouse
-00_generate_raw_data.Notebook
-01_raw_to_silver.Notebook
-02_silver_to_gold.Notebook
-03_run_end_to_end.Notebook
-```
+Do **not** connect to the old `workspace-items` folder. That folder was removed because Fabric rejected the hand-authored system files.
 
 ## What should sync
 
+Fabric should create valid item folders in Git after you commit from the Fabric Source control pane.
+
 | Item | Expected behavior |
 |---|---|
-| `lh_customer360.Lakehouse` | Creates/syncs Lakehouse metadata only |
-| `*.Notebook` folders | Creates/syncs notebooks from `notebook-content.py` |
+| Lakehouse created in Fabric | Commits Lakehouse metadata only |
+| Notebooks created/imported in Fabric | Commits `*.Notebook` folders with Fabric-generated system files |
 | Lakehouse files/tables | Not synced by Git; generated when notebooks run |
 
 ## Demo flow
 
 1. In Fabric workspace settings, connect to GitHub repo `alexumanamonge/fabric_end-to-end_demo`.
 2. Select branch `main`.
-3. Select folder `workspace-items`.
-4. Open the workspace **Source control** pane.
-5. Pull/update incoming changes from Git.
-6. Confirm the Lakehouse and notebooks appear as Fabric items.
-7. Attach notebooks to `lh_customer360` if Fabric does not auto-bind the Lakehouse.
-8. Run `03_run_end_to_end`.
-9. Show that Git created the code assets, while notebook execution created the actual OneLake raw files and tables.
+3. Select repository root `/`.
+4. Create Lakehouse `lh_customer360` in Fabric.
+5. Create/import the four notebooks from `fabric\notebooks`.
+6. Attach notebooks to `lh_customer360`.
+7. In Source control, commit the Fabric-created Lakehouse and notebooks to Git.
+8. Make a small change in GitHub, such as editing a markdown cell or adding a comment to one notebook.
+9. Return to Fabric Source control and pull the incoming change.
+10. Run `03_run_end_to_end`.
+11. Show that Git governed the code assets, while notebook execution created the actual OneLake raw files and tables.
 
 ## Key customer talking point
 
@@ -46,14 +54,13 @@ Git integration governs the code and metadata lifecycle. Data lifecycle is handl
 
 This distinction is important: Git should promote the repeatable build logic; Fabric jobs should produce or refresh the data.
 
-## If notebooks do not appear
+## If Git sync errors
 
 Check these items:
 
-1. The workspace Git connection is pointed at `workspace-items`, not the repo root.
+1. The workspace Git connection is pointed at `/`, not `workspace-items`.
 2. The branch is `main`.
-3. The tenant supports Notebook Git integration.
-4. The Source control pane shows incoming changes and no unsupported-item warning.
-5. The notebook item folders contain `.platform` and `notebook-content.py`.
-6. The user has Workspace Admin or Member permissions.
-
+3. Remove any incoming handcrafted `*.Notebook` or `*.Lakehouse` folders.
+4. Let Fabric create item system files by committing from Fabric to Git.
+5. The user has Workspace Admin or Member permissions.
+6. The tenant supports Notebook and Lakehouse Git integration.

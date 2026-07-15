@@ -1,5 +1,0 @@
-{
-  "type": "Notebook",
-  "displayName": "00_generate_raw_data",
-  "description": "Generate deterministic raw Customer 360 demo data in OneLake."
-}

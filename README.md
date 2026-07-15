@@ -25,7 +25,6 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
 | `fabric\semantic-model` | Suggested DAX measures and model design. |
 | `fabric\data-agent` | Data Agent instructions and sample prompts. |
 | `fabric\governance` | Security, permissions, lineage, and governance checklist. |
-| `workspace-items` | Fabric Git integration item folders for Lakehouse and Notebook sync. |
 | `docs` | Bill of materials and demo runbook. |
 
 ## Quick start
@@ -46,7 +45,7 @@ The data is transformed through Bronze, Silver, and Gold layers, then consumed t
 
 ## Git integration demo
 
-To demo Fabric Git integration, connect the Fabric workspace to the `workspace-items` folder in this repo, not the repo root. See `docs\fabric-git-integration-demo.md`.
+To demo Fabric Git integration, use the Fabric-first flow in `docs\fabric-git-integration-demo.md`. Fabric should generate its own item system files; do not rely on hand-authored Fabric metadata.
 
 ## Suggested GitHub repository name
 
