@@ -14,6 +14,27 @@ manually by you (see [`../docs/fabric-workspace-setup.md`](../docs/fabric-worksp
 
 All resources land in a single resource group (`rg-<namePrefix>-source` by default).
 
+## One-click deploy (portal)
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Falexumanamonge%2Ffabric_end-to-end_demo%2Fmain%2Finfra%2Fazuredeploy.json)
+
+The button loads [`azuredeploy.json`](azuredeploy.json) (the ARM template compiled
+from `main.bicep`) into the Azure portal. Pick a region and set the SQL admin
+password; all other parameters have sensible defaults.
+
+**Notes**
+- This is a **subscription-scoped** template — it creates the resource group for
+  you (no need to pre-create one).
+- The button **provisions infrastructure only**; it does not seed data. After it
+  completes, run the seeding command in the repo README (Step 1, Option A) to load
+  the SQL tables and upload the Shortcut files.
+- The portal deploy does not add your workstation IP to the SQL firewall. The
+  `Deploy-Azure.ps1` seeding step adds it automatically; alternatively add a
+  firewall rule for your IP in the portal, or enable *Allow Azure services*.
+- **Regenerating the template:** if you change the Bicep, recompile with
+  `az bicep build --file infra\main.bicep --outfile infra\azuredeploy.json` and
+  commit the result so the button stays in sync.
+
 ## Files
 
 | File | Purpose |
@@ -22,6 +43,7 @@ All resources land in a single resource group (`rg-<namePrefix>-source` by defau
 | `modules/sqlServer.bicep` | Reusable Azure SQL logical server + database + firewall. |
 | `modules/storage.bicep` | ADLS Gen2 storage account + container for the shortcut source. |
 | `main.bicepparam` | Parameter values. **Never commit real secrets.** |
+| `azuredeploy.json` | ARM template compiled from `main.bicep` — powers the **Deploy to Azure** button. |
 
 ## Prerequisites
 
