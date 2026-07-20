@@ -1,44 +1,65 @@
 # Demo runbook
 
-## 1. Admin setup
+A suggested order for delivering the demo live. Full setup detail is in
+`README.md` and the linked guides.
 
-1. Open the Fabric portal.
-2. Create or open workspace `Fabric End-to-End Demo`.
-3. Confirm the workspace is assigned to Fabric capacity.
-4. Show workspace roles and explain least privilege.
-5. Apply or discuss sensitivity labels and endorsement.
+## 0. Pre-demo (once)
 
-## 2. Automated ingestion and transformation
+1. `scripts\Deploy-Azure.ps1` — deploy + seed Azure sources.
+2. Create Fabric capacity, domain, workspace, and the three Lakehouses
+   (`docs\fabric-workspace-setup.md`).
+3. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`).
+4. Run `03_run_end_to_end`; deploy the semantic model + report (Git integration),
+   then build the Data Agent and Fabric IQ ontology.
+5. Apply governance (`fabric\governance\checklist.md`).
 
-1. Create or sync Lakehouses `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
-2. Pull the Git-connected notebooks from Source control.
-3. If Fabric cannot resolve the workspace name automatically, set `WORKSPACE_NAME` in each notebook.
-4. Run `03_run_end_to_end`.
-5. Show raw CSV data under `LH_Bronze > Files/raw/customer360`.
-6. Show Bronze raw tables in `LH_Bronze`, Silver cleansed/joined tables in `LH_Silver`, and Gold business tables in `LH_Gold`.
+## 1. Admin & structure (5 min)
 
-Use `docs\automated-build-guide.md` as the detailed build procedure.
+- Show the capacity, **domain**, and workspace roles (least privilege).
+- Show naming conventions and the medallion Lakehouse layout.
 
-## 4. Governance and lineage
+## 2. Ingestion — three patterns (8 min)
 
-1. Open workspace lineage view.
-2. Show the chain from Bronze Lakehouse to Silver Lakehouse to Gold Lakehouse to semantic model to report.
-3. Open item permissions and explain access control.
-4. Promote or certify the semantic model.
+- **Mirroring:** open `mirror_sqldb_ops`; optionally update a row in `sqldb-ops`
+  and watch it replicate.
+- **Shortcut:** show `LH_Bronze/Files/shortcuts/regions` — data virtualized, no copy.
+- **ETL / Copy Job:** show `copy_etl_to_bronze` run history landing `orders` and
+  `support_tickets` into `LH_Bronze/Tables`.
 
-## 5. Semantic model and Power BI
+## 3. Medallion transformation (6 min)
 
-1. Create a semantic model from `LH_Gold` tables.
-2. Add measures from `fabric\semantic-model\measures.dax`.
-3. Build report pages:
-   - Executive Overview
-   - Customer 360
-   - Support and Satisfaction
-4. Show Direct Lake positioning and governed metrics.
+- Walk `01_raw_to_silver` (clean + combine) and `02_silver_to_gold`
+  (business-ready). Run `03_run_end_to_end` and show the row-count summary.
+- Point out Bronze = raw, Silver = conformed, Gold = consumption-ready.
 
-## 6. Data Agent
+## 4. ⭐ Governance & security (10 min)
 
-1. Create `Customer Insights Agent`.
-2. Use the instructions in `fabric\data-agent\instructions.md`.
-3. Ask the recommended starter questions.
-4. Explain that agent answers are constrained by governed data permissions.
+- **OneLake catalog:** discover Customer 360 by domain; show descriptions/owners.
+- **Lineage:** trace source → Bronze → Silver → Gold → model → report/agent; run
+  **impact analysis**.
+- **RLS/CLS:** apply `fabric\governance\rls-cls.sql`; query as Analyst vs. Manager
+  to show fewer rows, masked names, and the denied `sensitivity_tier` column.
+- **Endorsement:** show the **Certified** badge on `sm_customer360_gold`.
+- **Sensitivity labels:** show the label on Gold flowing to the report.
+
+## 5. Semantic model & Power BI (6 min)
+
+- Deploy `sm_customer360_gold` (Direct Lake) + `Customer 360 Executive Overview`
+  via **Git integration** (or create manually); one-time bind per
+  `fabric\semantic-model\README.md`.
+- Report pages: Executive Overview, Customer 360, Support & Governance.
+- Optionally apply semantic-model RLS (`fabric\semantic-model\rls-roles.md`) and
+  demo **View as › US Only**.
+
+## 6. Data Agent & Fabric IQ ontology (6 min)
+
+- Open `Customer Insights Agent` (build per `fabric\data-agent\build-guide.md`);
+  ask the starter questions in `fabric\data-agent\instructions.md`.
+- Show the **Fabric IQ ontology** (`fabric\ontology\README.md`): entities
+  (Customer, Region, SalesFact, Product, SupportTicket) over Gold.
+- Note answers respect the same governed permissions (RLS/CLS) as the report.
+
+## 7. Lifecycle (3 min)
+
+- Show Git integration governing code/metadata; note data is produced by Fabric
+  runtime (mirroring, shortcut, copy job, notebooks).

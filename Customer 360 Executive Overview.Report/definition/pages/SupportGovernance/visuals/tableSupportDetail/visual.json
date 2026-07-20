@@ -1,0 +1,80 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "tableSupportDetail",
+  "position": {
+    "x": 640,
+    "y": 160,
+    "z": 2100,
+    "height": 460,
+    "width": 620
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "customer_name"
+                }
+              },
+              "queryRef": "customer_360.customer_name",
+              "nativeQueryRef": "customer_name",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "support_ticket_count"
+                }
+              },
+              "queryRef": "customer_360.support_ticket_count",
+              "nativeQueryRef": "support_ticket_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "critical_ticket_count"
+                }
+              },
+              "queryRef": "customer_360.critical_ticket_count",
+              "nativeQueryRef": "critical_ticket_count"
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "sensitivity_tier"
+                }
+              },
+              "queryRef": "customer_360.sensitivity_tier",
+              "nativeQueryRef": "sensitivity_tier"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

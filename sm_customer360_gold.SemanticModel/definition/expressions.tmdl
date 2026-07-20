@@ -1,0 +1,11 @@
+/// Direct Lake connection to the LH_Gold SQL analytics endpoint.
+/// REPLACE the two placeholders below with your Lakehouse SQL endpoint and
+/// database (id or name), then refresh. In Power BI Desktop / Fabric you can also
+/// just re-point the source when prompted on first open. See
+/// fabric/semantic-model/README.md.
+expression 'DirectLake - LH_Gold' =
+		let
+			Source = Sql.Database("REPLACE_WITH_LH_GOLD_SQL_ENDPOINT.datawarehouse.fabric.microsoft.com", "REPLACE_WITH_LH_GOLD_DATABASE")
+		in
+			Source
+	lineageTag: a16cd111-7c6b-449a-86c3-e0d6e812b624

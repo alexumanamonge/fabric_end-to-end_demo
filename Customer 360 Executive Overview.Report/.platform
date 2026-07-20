@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Customer 360 Executive Overview",
+    "description": "Power BI report over the certified sm_customer360_gold Direct Lake semantic model."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "df0c049c-28ef-483e-8359-2765011592a4"
+  }
+}

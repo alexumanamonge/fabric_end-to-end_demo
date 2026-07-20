@@ -1,0 +1,9 @@
+{
+  "version": "4.0",
+  "datasetReference": {
+    "byPath": {
+      "path": "../sm_customer360_gold.SemanticModel"
+    },
+    "byConnection": null
+  }
+}

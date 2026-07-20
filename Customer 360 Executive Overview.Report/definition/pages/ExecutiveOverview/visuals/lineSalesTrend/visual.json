@@ -1,0 +1,70 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "lineSalesTrend",
+  "position": {
+    "x": 660,
+    "y": 160,
+    "z": 2100,
+    "height": 260,
+    "width": 600
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sales_summary"
+                    }
+                  },
+                  "Property": "sales_year"
+                }
+              },
+              "queryRef": "sales_summary.sales_year",
+              "nativeQueryRef": "sales_year",
+              "active": true
+            },
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sales_summary"
+                    }
+                  },
+                  "Property": "sales_month"
+                }
+              },
+              "queryRef": "sales_summary.sales_month",
+              "nativeQueryRef": "sales_month"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "sales_summary"
+                    }
+                  },
+                  "Property": "Total Sales"
+                }
+              },
+              "queryRef": "sales_summary.Total Sales",
+              "nativeQueryRef": "Total Sales"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

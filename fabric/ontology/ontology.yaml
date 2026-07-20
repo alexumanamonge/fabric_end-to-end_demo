@@ -1,0 +1,96 @@
+# Fabric IQ ontology (config-as-code)
+# Fabric IQ / digital-twin ontologies are authored in the Fabric UI (preview);
+# this file is the source of truth for the entities, properties, relationships,
+# and OneLake data bindings. See README.md for how to build it in Fabric.
+
+ontology:
+  name: Contoso Customer 360 Ontology
+  description: >-
+    Business semantic layer over the Gold medallion. Models the real-world
+    concepts of the demo (customers, orders, products, regions, support tickets)
+    and binds them to certified OneLake Gold tables so agents and Fabric IQ can
+    reason over governed data.
+
+  # OneLake source these entities bind to.
+  data_source:
+    lakehouse: LH_Gold
+    schema: dbo
+
+  entities:
+    - name: Customer
+      key: customer_id
+      binding:
+        table: customer_360
+      properties:
+        - {name: customer_id,   type: string,  source: customer_id,   is_key: true}
+        - {name: customer_name, type: string,  source: customer_name, label: true}
+        - {name: segment,       type: string,  source: segment}
+        - {name: industry,      type: string,  source: industry}
+        - {name: account_owner, type: string,  source: account_owner, sensitivity: confidential}
+        - {name: created_date,  type: date,    source: created_date}
+        - {name: sensitivity_tier, type: string, source: sensitivity_tier}
+        - {name: lifetime_sales, type: decimal, source: lifetime_sales, measure: true}
+        - {name: order_count,    type: integer, source: order_count,    measure: true}
+        - {name: support_ticket_count, type: integer, source: support_ticket_count, measure: true}
+        - {name: average_satisfaction_score, type: decimal, source: average_satisfaction_score, measure: true}
+        - {name: critical_ticket_count, type: integer, source: critical_ticket_count, measure: true}
+
+    - name: Region
+      key: region_id
+      binding:
+        # Region attributes are denormalized onto customer_360 in Gold.
+        table: customer_360
+      properties:
+        - {name: region_id,    type: string, source: region_id, is_key: true}
+        - {name: geo,          type: string, source: geo}
+        - {name: sales_region, type: string, source: sales_region, label: true}
+        - {name: country,      type: string, source: country}
+
+    - name: SalesFact
+      # Aggregated sales grain used for market/region reasoning.
+      key: [geo, sales_region, country, segment, industry, category, sales_year, sales_month]
+      binding:
+        table: sales_summary
+      properties:
+        - {name: sales_region, type: string,  source: sales_region}
+        - {name: country,      type: string,  source: country}
+        - {name: segment,      type: string,  source: segment}
+        - {name: industry,     type: string,  source: industry}
+        - {name: category,     type: string,  source: category}
+        - {name: sales_year,   type: integer, source: sales_year}
+        - {name: sales_month,  type: integer, source: sales_month}
+        - {name: total_sales,      type: decimal, source: total_sales,      measure: true}
+        - {name: active_customers, type: integer, source: active_customers, measure: true}
+        - {name: order_count,      type: integer, source: order_count,      measure: true}
+
+    # Order, Product and SupportTicket are conceptual entities of the demo. In the
+    # Gold layer they are pre-aggregated into customer_360 / sales_summary. If you
+    # surface Silver tables to Fabric IQ, bind these to their base tables instead.
+    - name: Product
+      key: category
+      binding:
+        table: sales_summary
+      properties:
+        - {name: category, type: string, source: category, is_key: true, label: true}
+
+    - name: SupportTicket
+      # Conceptual; measures live aggregated on Customer in Gold.
+      key: customer_id
+      binding:
+        table: customer_360
+      properties:
+        - {name: customer_id,            type: string,  source: customer_id, is_key: true}
+        - {name: support_ticket_count,   type: integer, source: support_ticket_count, measure: true}
+        - {name: critical_ticket_count,  type: integer, source: critical_ticket_count, measure: true}
+        - {name: average_satisfaction_score, type: decimal, source: average_satisfaction_score, measure: true}
+
+  relationships:
+    - {name: customer_located_in, from: Customer, to: Region, cardinality: many_to_one, on: region_id}
+    - {name: customer_has_tickets, from: Customer, to: SupportTicket, cardinality: one_to_one, on: customer_id}
+    - {name: sales_in_region,      from: SalesFact, to: Region, cardinality: many_to_one, on: [sales_region, country]}
+    - {name: sales_of_product,     from: SalesFact, to: Product, cardinality: many_to_one, on: category}
+
+  governance:
+    respects_rls: true          # inherits Gold/model RLS on country
+    sensitivity_label: Confidential
+    certified: true

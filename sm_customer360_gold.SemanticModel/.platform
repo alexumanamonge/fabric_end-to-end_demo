@@ -1,0 +1,12 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "sm_customer360_gold",
+    "description": "Direct Lake semantic model over LH_Gold for the Fabric end-to-end demo."
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "4707d853-de74-4c2b-b312-d1a6467dfd89"
+  }
+}

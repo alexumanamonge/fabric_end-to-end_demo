@@ -1,0 +1,56 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.4.0/schema.json",
+  "name": "barLifetimeByOwner",
+  "position": {
+    "x": 900,
+    "y": 280,
+    "z": 2100,
+    "height": 240,
+    "width": 360
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "account_owner"
+                }
+              },
+              "queryRef": "customer_360.account_owner",
+              "nativeQueryRef": "account_owner",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "customer_360"
+                    }
+                  },
+                  "Property": "Lifetime Sales"
+                }
+              },
+              "queryRef": "customer_360.Lifetime Sales",
+              "nativeQueryRef": "Lifetime Sales"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

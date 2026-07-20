@@ -4,3 +4,10 @@ __pycache__/
 .venv/
 *.log
 
+# Bicep compiled output (source of truth is the .bicep files)
+infra/main.json
+infra/main.parameters.json
+
+# Deployment outputs may contain environment-specific endpoints
+infra/deployment-outputs.json
+

@@ -18,8 +18,14 @@
 # MARKDOWN ********************
 
 # # 02 - Silver to Gold
-# 
-# Reads conformed Silver tables from `LH_Silver` and creates business-ready Gold tables in `LH_Gold` for the semantic model, Power BI report, and Data Agent.
+#
+# Reads conformed Silver tables from `LH_Silver` and creates business-ready **Gold**
+# tables in `LH_Gold` for the Direct Lake semantic model, Power BI report, and Data
+# Agent.
+#
+# `gold_customer_360` intentionally keeps `account_owner`, `country`, and
+# `sensitivity_tier` so the governance demo can apply **row-level** and
+# **column-level** security (see `fabric/governance/`).
 
 # CELL ********************
 
@@ -55,26 +61,20 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
 SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, "Tables")
 GOLD_TABLES = lakehouse_path(GOLD_LAKEHOUSE, "Tables")
 
-# Read required Silver tables from LH_Silver.
+# --- Read required Silver tables ---
 customer_orders = spark.read.format("delta").load(f"{SILVER_TABLES}/customer_orders")
 customers = spark.read.format("delta").load(f"{SILVER_TABLES}/customers")
 orders = spark.read.format("delta").load(f"{SILVER_TABLES}/orders")
 tickets = spark.read.format("delta").load(f"{SILVER_TABLES}/support_tickets")
 
-# Gold: sales summary by geo/region/month
+# --- Gold: monthly sales summary by geography / segment / industry / category ---
 gold_sales_summary = (
     customer_orders
     .withColumn("sales_year", F.year("order_date"))
     .withColumn("sales_month", F.month("order_date"))
     .groupBy(
-        "geo",
-        "sales_region",
-        "country",
-        "segment",
-        "industry",
-        "category",
-        "sales_year",
-        "sales_month",
+        "geo", "sales_region", "country", "segment", "industry", "category",
+        "sales_year", "sales_month",
     )
     .agg(
         F.sum("sales_amount").alias("total_sales"),
@@ -84,7 +84,7 @@ gold_sales_summary = (
     )
 )
 
-# Support ticket summary per customer
+# --- Support ticket summary per customer ---
 ticket_summary = (
     tickets
     .groupBy("customer_id")
@@ -95,7 +95,7 @@ ticket_summary = (
     )
 )
 
-# Order summary per customer
+# --- Order summary per customer ---
 order_summary = (
     orders
     .groupBy("customer_id")
@@ -106,7 +106,7 @@ order_summary = (
     )
 )
 
-# Customer 360 view
+# --- Customer 360 (keeps security-relevant columns for RLS/CLS) ---
 gold_customer_360 = (
     customers
     .join(order_summary, "customer_id", "left")
@@ -121,27 +121,25 @@ gold_customer_360 = (
     )
 )
 
-# Executive KPIs
+# --- Executive KPI snapshot ---
 gold_customer_360.createOrReplaceTempView("gold_customer_360_temp")
-
 gold_executive_kpis = spark.sql(
     """
     SELECT
-      COUNT(DISTINCT customer_id) AS total_customers,
-      SUM(lifetime_sales) AS total_sales,
-      SUM(order_count) AS total_orders,
-      SUM(support_ticket_count) AS total_support_tickets,
+      COUNT(DISTINCT customer_id)   AS total_customers,
+      SUM(lifetime_sales)           AS total_sales,
+      SUM(order_count)              AS total_orders,
+      SUM(support_ticket_count)     AS total_support_tickets,
       AVG(average_satisfaction_score) AS average_satisfaction_score
     FROM gold_customer_360_temp
     """
 )
 
-# Persist Gold tables as Delta in LH_Gold.
+# --- Persist Gold ---
 gold_sales_summary.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/sales_summary")
 gold_customer_360.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/customer_360")
 gold_executive_kpis.write.mode("overwrite").format("delta").save(f"{GOLD_TABLES}/executive_kpis")
 
-# Simple row count sanity check
 display(
     spark.createDataFrame(
         [

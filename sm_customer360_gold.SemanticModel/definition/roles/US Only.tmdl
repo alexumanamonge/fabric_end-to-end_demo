@@ -1,0 +1,4 @@
+role 'US Only'
+	modelPermission: read
+
+	tablePermission customer_360 = [country] = "United States"

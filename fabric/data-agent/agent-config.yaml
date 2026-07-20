@@ -1,0 +1,53 @@
+# Data Agent configuration (config-as-code)
+# Fabric Data Agents are created in the workspace UI; this file is the source of
+# truth for what to configure. See build-guide.md for step-by-step setup.
+
+name: Customer Insights Agent
+description: >-
+  Governed natural-language analytics agent for the Contoso Customer 360 Fabric
+  demo. Answers business questions from the certified Gold semantic model and
+  Gold Lakehouse, respecting RLS/CLS.
+
+# Data sources the agent is grounded on (add these in the agent's UI).
+# Prefer the certified semantic model first; add the Lakehouse SQL endpoint for
+# detail/ad-hoc queries.
+data_sources:
+  - type: semantic_model
+    name: sm_customer360_gold
+    primary: true
+    notes: Certified Direct Lake model. Measures and RLS live here.
+  - type: lakehouse
+    name: LH_Gold
+    notes: SQL analytics endpoint for row-level detail beyond the model measures.
+
+# Per-source instructions (paste into each source's "AI instructions" box).
+source_instructions:
+  sm_customer360_gold: >-
+    Use certified measures: Total Sales, Active Customers, Order Count, Average
+    Sales per Customer, Average Discount %, Lifetime Sales, Support Tickets,
+    Average Satisfaction, Critical Tickets, Customer Count. Slice by
+    sales_region, country, segment, industry, category, sales_year, sales_month.
+    Never sum lifetime_sales and total_sales together (different grains).
+  LH_Gold: >-
+    Query dbo tables customer_360, sales_summary, executive_kpis for row-level
+    detail. Respect any RLS/CLS on the SQL endpoint.
+
+# Example / starter questions surfaced to users.
+example_queries:
+  - What were total sales by region this year?
+  - Which customer segment has the highest average sales per customer?
+  - Show the top 5 customers by lifetime sales.
+  - Which industries have the most support tickets?
+  - Summarize customer performance for an executive audience.
+
+# Guardrails encoded in the agent instructions (see instructions.md).
+guardrails:
+  - Answer only from the connected Gold sources; do not invent data.
+  - Always state which measure/metric was used.
+  - Honor row-level and column-level security; never attempt to bypass RLS/CLS.
+  - Prefer concise, executive-ready summaries.
+
+governance:
+  certified_sources_only: true
+  respects_rls: true
+  sensitivity_label: Confidential  # apply after creation, matching Gold

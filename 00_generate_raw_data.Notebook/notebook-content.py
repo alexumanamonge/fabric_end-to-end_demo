@@ -17,9 +17,20 @@
 
 # MARKDOWN ********************
 
-# # 00 - Generate raw demo data
-# 
-# Creates deterministic raw CSV folders in Lakehouse `LH_Bronze` under `Files/raw/customer360` so the rest of the demo can run without any external source-system dependency.
+# # 00 - (OPTIONAL) Offline Bronze seed
+#
+# **You usually do NOT run this notebook.** The primary demo lands Bronze data from
+# three real Azure ingestion patterns:
+#
+# | Bronze object | Real ingestion pattern | Setup guide |
+# |---|---|---|
+# | `Tables/customers`, `Tables/products` | **Mirroring** from `sqldb-ops` | `docs/ingestion-mirroring.md` |
+# | `Files/shortcuts/regions/regions.csv` | **Shortcut** from ADLS Gen2 | `docs/ingestion-shortcut.md` |
+# | `Tables/orders`, `Tables/support_tickets` | **ETL / Copy Job** from `sqldb-etl` | `docs/ingestion-etl-copyjob.md` |
+#
+# Run this notebook **only** to seed Bronze with the same shapes **without** deploying
+# Azure sources (e.g. a laptop-only dry run). It writes the identical canonical
+# locations that the real ingestion produces, so `01_raw_to_silver` works either way.
 
 # CELL ********************
 
@@ -53,7 +64,9 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
     return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
 
 
-RAW_BASE = lakehouse_path(BRONZE_LAKEHOUSE, "Files/raw/customer360")
+BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, "Tables")
+REGIONS_SHORTCUT_DIR = lakehouse_path(BRONZE_LAKEHOUSE, "Files/shortcuts/regions")
+
 SEED = 20260714
 rng = random.Random(SEED)
 
@@ -81,8 +94,7 @@ def random_date(start: date, end: date) -> str:
 
 
 regions = [
-    Row(region_id=region_id, geo=geo, sales_region=sales_region, country=country)
-    for region_id, geo, sales_region, country in regions_seed
+    Row(region_id=r[0], geo=r[1], sales_region=r[2], country=r[3]) for r in regions_seed
 ]
 
 customers = []
@@ -103,8 +115,7 @@ for index in range(1, 151):
     )
 
 products = [
-    Row(product_id=product_id, product_name=product_name, category=category, list_price=list_price)
-    for product_id, product_name, category, list_price in products_seed
+    Row(product_id=p[0], product_name=p[1], category=p[2], list_price=p[3]) for p in products_seed
 ]
 
 orders = []
@@ -112,7 +123,7 @@ for index in range(1, 1201):
     customer = rng.choice(customers)
     product = rng.choice(products)
     quantity = rng.randint(1, 8)
-    discount_pct = rng.choice([0.0, 0.0, 0.05, 0.1, 0.15])
+    discount_pct = rng.choice([0.0, 0.0, 0.0, 0.05, 0.1, 0.15])
     sales_amount = round(product.list_price * quantity * (1 - discount_pct), 2)
     orders.append(
         Row(
@@ -124,7 +135,7 @@ for index in range(1, 1201):
             discount_pct=discount_pct,
             sales_amount=sales_amount,
             channel=rng.choice(["Direct", "Partner", "Marketplace", "Web"]),
-            source_system=rng.choice(["copy_job", "shortcut", "mirror"]),
+            source_system="sqlmi_etl",
         )
     )
 
@@ -145,31 +156,33 @@ for index in range(1, 401):
         )
     )
 
-raw_sets = {
-    "regions": regions,
-    "customers": customers,
-    "products": products,
-    "orders": orders,
-    "support_tickets": tickets,
-}
+# Mirroring + Copy Job land Delta TABLES in Bronze -> emulate that here.
+spark.createDataFrame(customers).write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/customers")
+spark.createDataFrame(products).write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/products")
+spark.createDataFrame(orders).write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/orders")
+spark.createDataFrame(tickets).write.mode("overwrite").format("delta").save(f"{BRONZE_TABLES}/support_tickets")
 
-# Write CSVs to the default lakehouse Files path. Fabric will resolve "Files/..." to the
-# correct OneLake location regardless of workspace or lakehouse IDs.
-for name, rows in raw_sets.items():
-    (
-        spark.createDataFrame(rows)
-        .coalesce(1)
-        .write.mode("overwrite")
-        .option("header", "true")
-        .csv(f"{RAW_BASE}/{name}")
-    )
-
-summary_df = spark.createDataFrame(
-    [(name, len(rows), f"{RAW_BASE}/{name}") for name, rows in raw_sets.items()],
-    ["raw_entity", "row_count", "path"],
+# Shortcut lands a CSV FILE in Bronze -> emulate that here.
+(
+    spark.createDataFrame(regions)
+    .coalesce(1)
+    .write.mode("overwrite")
+    .option("header", "true")
+    .csv(REGIONS_SHORTCUT_DIR)
 )
 
-display(summary_df)
+display(
+    spark.createDataFrame(
+        [
+            ("LH_Bronze.Tables.customers", len(customers)),
+            ("LH_Bronze.Tables.products", len(products)),
+            ("LH_Bronze.Tables.orders", len(orders)),
+            ("LH_Bronze.Tables.support_tickets", len(tickets)),
+            ("LH_Bronze.Files.shortcuts/regions", len(regions)),
+        ],
+        ["bronze_object", "row_count"],
+    )
+)
 
 
 # METADATA ********************

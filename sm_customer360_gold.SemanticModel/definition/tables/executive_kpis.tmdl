@@ -1,0 +1,46 @@
+table executive_kpis
+	lineageTag: e5504c3d-c85f-4e0b-acda-ba11c036185b
+
+	column total_customers
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: total_customers
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_sales
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: total_sales
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_orders
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: total_orders
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_support_tickets
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: total_support_tickets
+
+		annotation SummarizationSetBy = Automatic
+
+	column average_satisfaction_score
+		dataType: double
+		summarizeBy: average
+		sourceColumn: average_satisfaction_score
+
+		annotation SummarizationSetBy = Automatic
+
+	partition executive_kpis = entity
+		mode: directLake
+		source
+			entityName: executive_kpis
+			schemaName: dbo
+			expressionSource: 'DirectLake - LH_Gold'
+
+	annotation PBI_ResultType = Table

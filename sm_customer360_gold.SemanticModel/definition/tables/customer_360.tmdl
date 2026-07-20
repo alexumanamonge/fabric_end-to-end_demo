@@ -1,0 +1,151 @@
+table customer_360
+	lineageTag: febd03e0-3b26-4f7f-bd1c-2c315e5b0df9
+
+	measure 'Lifetime Sales' = SUM('customer_360'[lifetime_sales])
+		formatString: \$#,0;(\$#,0)
+
+	measure 'Support Tickets' = SUM('customer_360'[support_ticket_count])
+		formatString: #,0
+
+	measure 'Average Satisfaction' = AVERAGE('customer_360'[average_satisfaction_score])
+		formatString: 0.0
+
+	measure 'Critical Tickets' = SUM('customer_360'[critical_ticket_count])
+		formatString: #,0
+
+	measure 'Customer Count' = DISTINCTCOUNT('customer_360'[customer_id])
+		formatString: #,0
+
+	column customer_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: customer_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column customer_name
+		dataType: string
+		summarizeBy: none
+		sourceColumn: customer_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column segment
+		dataType: string
+		summarizeBy: none
+		sourceColumn: segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column industry
+		dataType: string
+		summarizeBy: none
+		sourceColumn: industry
+
+		annotation SummarizationSetBy = Automatic
+
+	column region_id
+		dataType: string
+		summarizeBy: none
+		sourceColumn: region_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column geo
+		dataType: string
+		summarizeBy: none
+		sourceColumn: geo
+
+		annotation SummarizationSetBy = Automatic
+
+	column sales_region
+		dataType: string
+		summarizeBy: none
+		sourceColumn: sales_region
+
+		annotation SummarizationSetBy = Automatic
+
+	column country
+		dataType: string
+		summarizeBy: none
+		sourceColumn: country
+
+		annotation SummarizationSetBy = Automatic
+
+	column account_owner
+		dataType: string
+		summarizeBy: none
+		sourceColumn: account_owner
+
+		annotation SummarizationSetBy = Automatic
+
+	column created_date
+		dataType: dateTime
+		formatString: Long Date
+		summarizeBy: none
+		sourceColumn: created_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column sensitivity_tier
+		dataType: string
+		summarizeBy: none
+		sourceColumn: sensitivity_tier
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_count
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: order_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column lifetime_sales
+		dataType: double
+		summarizeBy: sum
+		sourceColumn: lifetime_sales
+
+		annotation SummarizationSetBy = Automatic
+
+	column last_order_date
+		dataType: dateTime
+		formatString: Long Date
+		summarizeBy: none
+		sourceColumn: last_order_date
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column support_ticket_count
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: support_ticket_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column average_satisfaction_score
+		dataType: double
+		summarizeBy: average
+		sourceColumn: average_satisfaction_score
+
+		annotation SummarizationSetBy = Automatic
+
+	column critical_ticket_count
+		dataType: int64
+		summarizeBy: sum
+		sourceColumn: critical_ticket_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition customer_360 = entity
+		mode: directLake
+		source
+			entityName: customer_360
+			schemaName: dbo
+			expressionSource: 'DirectLake - LH_Gold'
+
+	annotation PBI_ResultType = Table

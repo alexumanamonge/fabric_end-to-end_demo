@@ -1,0 +1,6 @@
+region_id,geo,sales_region,country
+R-NA-W,North America,West,United States
+R-NA-E,North America,East,United States
+R-LATAM,Latin America,Central,Costa Rica
+R-EMEA-N,EMEA,North,United Kingdom
+R-APAC-S,APAC,South,Singapore

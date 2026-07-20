@@ -18,28 +18,38 @@
 # MARKDOWN ********************
 
 # # 03 - Run end-to-end
-# 
-# Optional orchestration notebook. Run this one to build the complete demo pipeline across `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
+#
+# Orchestrates the medallion pipeline across `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
+#
+# - **Primary flow (real ingestion):** leave `RUN_OFFLINE_SEED = False`. Bronze is
+#   populated by Mirroring + Shortcut + Copy Job (see `docs/ingestion-*.md`). This
+#   notebook then runs Silver and Gold.
+# - **Offline dry run:** set `RUN_OFFLINE_SEED = True` to first run
+#   `00_generate_raw_data`, seeding Bronze without any Azure sources.
 
 # CELL ********************
 
-# Run child notebooks sequentially and stop if any fails
-
-# Helper to run a notebook and surface a clear error if it fails
 from notebookutils import notebook as nb
 
-for child_nb in [
-    "00_generate_raw_data",
-    "01_raw_to_silver",
-    "02_silver_to_gold",
-]:
+# Set True only for an offline dry run without deployed Azure sources.
+RUN_OFFLINE_SEED = False
+
+child_notebooks = []
+if RUN_OFFLINE_SEED:
+    child_notebooks.append("00_generate_raw_data")
+child_notebooks += ["01_raw_to_silver", "02_silver_to_gold"]
+
+for child_nb in child_notebooks:
     try:
         nb.run(child_nb, 900)
     except Exception as e:
-        # Log which child failed and re-raise so the pipeline stops here
-        raise RuntimeError(f"Child notebook '{child_nb}' failed. See its last run for details.") from e
+        raise RuntimeError(
+            f"Child notebook '{child_nb}' failed. See its last run for details."
+        ) from e
 
-# If all child notebooks succeed, show row counts from key tables
+# CELL ********************
+
+# Row-count sanity check across the medallion.
 WORKSPACE_NAME = ""
 
 
@@ -72,7 +82,8 @@ def delta_count(lakehouse_name: str, table_name: str) -> int:
 display(
     spark.createDataFrame(
         [
-            ("LH_Bronze.customers_raw", delta_count("LH_Bronze", "customers_raw")),
+            ("LH_Bronze.customers", delta_count("LH_Bronze", "customers")),
+            ("LH_Bronze.orders", delta_count("LH_Bronze", "orders")),
             ("LH_Silver.customer_orders", delta_count("LH_Silver", "customer_orders")),
             ("LH_Gold.sales_summary", delta_count("LH_Gold", "sales_summary")),
             ("LH_Gold.customer_360", delta_count("LH_Gold", "customer_360")),
