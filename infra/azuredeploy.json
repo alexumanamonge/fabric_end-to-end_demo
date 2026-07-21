@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "5344955462711260305"
+      "templateHash": "14911954030429473473"
     }
   },
   "parameters": {
@@ -30,6 +30,78 @@
       "defaultValue": "[format('rg-{0}-source', parameters('namePrefix'))]",
       "metadata": {
         "description": "Resource group name."
+      }
+    },
+    "uniqueSuffix": {
+      "type": "string",
+      "defaultValue": "[substring(uniqueString(subscription().subscriptionId, parameters('namePrefix')), 0, 6)]",
+      "metadata": {
+        "description": "Deterministic suffix to keep globally-unique names stable across redeploys."
+      }
+    },
+    "opsSqlServerName": {
+      "type": "string",
+      "defaultValue": "[format('sql-{0}-ops-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "metadata": {
+        "description": "Name of the operational SQL logical server (Mirroring source). Must be globally unique."
+      }
+    },
+    "opsDatabaseName": {
+      "type": "string",
+      "defaultValue": "sqldb-ops",
+      "metadata": {
+        "description": "Operational database name (Mirroring source)."
+      }
+    },
+    "etlSqlServerName": {
+      "type": "string",
+      "defaultValue": "[format('sql-{0}-etl-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "metadata": {
+        "description": "Name of the ETL SQL logical server (Copy Job source). Must be globally unique."
+      }
+    },
+    "etlDatabaseName": {
+      "type": "string",
+      "defaultValue": "sqldb-etl",
+      "metadata": {
+        "description": "ETL database name (Copy Job source)."
+      }
+    },
+    "storageAccountName": {
+      "type": "string",
+      "defaultValue": "[format('st{0}{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "minLength": 3,
+      "maxLength": 24,
+      "metadata": {
+        "description": "Storage account name (Shortcut source). Must be globally unique, 3-24 lowercase alphanumerics."
+      }
+    },
+    "containerName": {
+      "type": "string",
+      "defaultValue": "reference",
+      "metadata": {
+        "description": "Blob container that holds the Shortcut reference files."
+      }
+    },
+    "seedData": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Automatically seed the SQL databases and upload the Shortcut file as part of the deployment (runs a deployment script). Set false to seed later with scripts/Seed-Data.ps1."
+      }
+    },
+    "seedSourceUrl": {
+      "type": "string",
+      "defaultValue": "https://raw.githubusercontent.com/alexumanamonge/fabric_end-to-end_demo/main",
+      "metadata": {
+        "description": "Base raw URL the automated seed step downloads seed files from (data/sql/*.sql, data/blob/reference/regions/regions.csv)."
+      }
+    },
+    "seedForceUpdateTag": {
+      "type": "string",
+      "defaultValue": "[utcNow()]",
+      "metadata": {
+        "description": "Unique token that forces the seed deployment script to re-run on each deployment."
       }
     },
     "sqlAdminLogin": {
@@ -65,13 +137,6 @@
       "metadata": {
         "description": "Client public IP to allow through SQL firewall for seeding. Empty to skip."
       }
-    },
-    "uniqueSuffix": {
-      "type": "string",
-      "defaultValue": "[substring(uniqueString(subscription().subscriptionId, parameters('namePrefix')), 0, 6)]",
-      "metadata": {
-        "description": "Deterministic suffix to keep globally-unique names stable across redeploys."
-      }
     }
   },
   "variables": {
@@ -101,10 +166,10 @@
         "mode": "Incremental",
         "parameters": {
           "sqlServerName": {
-            "value": "[format('sql-{0}-ops-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]"
+            "value": "[parameters('opsSqlServerName')]"
           },
           "databaseName": {
-            "value": "sqldb-ops"
+            "value": "[parameters('opsDatabaseName')]"
           },
           "location": {
             "value": "[parameters('location')]"
@@ -328,13 +393,13 @@
         "mode": "Incremental",
         "parameters": {
           "storageAccountName": {
-            "value": "[format('st{0}{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]"
+            "value": "[parameters('storageAccountName')]"
           },
           "location": {
             "value": "[parameters('location')]"
           },
           "containerName": {
-            "value": "reference"
+            "value": "[parameters('containerName')]"
           },
           "tags": {
             "value": "[variables('tags')]"
@@ -469,10 +534,10 @@
         "mode": "Incremental",
         "parameters": {
           "sqlServerName": {
-            "value": "[format('sql-{0}-etl-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]"
+            "value": "[parameters('etlSqlServerName')]"
           },
           "databaseName": {
-            "value": "sqldb-etl"
+            "value": "[parameters('etlDatabaseName')]"
           },
           "location": {
             "value": "[parameters('location')]"
@@ -682,6 +747,218 @@
       },
       "dependsOn": [
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    },
+    {
+      "condition": "[parameters('seedData')]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "seedDemoData",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "opsSqlServerFqdn": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps'), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
+          },
+          "opsDatabaseName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps'), '2025-04-01').outputs.databaseName.value]"
+          },
+          "etlSqlServerFqdn": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl'), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
+          },
+          "etlDatabaseName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl'), '2025-04-01').outputs.databaseName.value]"
+          },
+          "sqlAdminLogin": {
+            "value": "[parameters('sqlAdminLogin')]"
+          },
+          "sqlAdminPassword": {
+            "value": "[parameters('sqlAdminPassword')]"
+          },
+          "storageAccountName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountName.value]"
+          },
+          "containerName": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.containerName.value]"
+          },
+          "seedSourceUrl": {
+            "value": "[parameters('seedSourceUrl')]"
+          },
+          "forceUpdateTag": {
+            "value": "[parameters('seedForceUpdateTag')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "13927969695716825650"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region for the deployment script + its transient storage."
+              }
+            },
+            "opsSqlServerFqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "FQDN of the operational SQL server (Mirroring source)."
+              }
+            },
+            "opsDatabaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "Operational database name."
+              }
+            },
+            "etlSqlServerFqdn": {
+              "type": "string",
+              "metadata": {
+                "description": "FQDN of the ETL SQL server (Copy Job source)."
+              }
+            },
+            "etlDatabaseName": {
+              "type": "string",
+              "metadata": {
+                "description": "ETL database name."
+              }
+            },
+            "sqlAdminLogin": {
+              "type": "string",
+              "metadata": {
+                "description": "SQL administrator login."
+              }
+            },
+            "sqlAdminPassword": {
+              "type": "securestring",
+              "metadata": {
+                "description": "SQL administrator password."
+              }
+            },
+            "storageAccountName": {
+              "type": "string",
+              "metadata": {
+                "description": "Storage account that holds the Shortcut source files."
+              }
+            },
+            "containerName": {
+              "type": "string",
+              "metadata": {
+                "description": "Blob container for the Shortcut files."
+              }
+            },
+            "seedSourceUrl": {
+              "type": "string",
+              "metadata": {
+                "description": "Base raw URL to download seed files from."
+              }
+            },
+            "forceUpdateTag": {
+              "type": "string",
+              "metadata": {
+                "description": "Token that forces the script to re-run on each deployment."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Resources/deploymentScripts",
+              "apiVersion": "2023-08-01",
+              "name": "seed-demo-data",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "AzurePowerShell",
+              "properties": {
+                "azPowerShellVersion": "11.5",
+                "retentionInterval": "PT1H",
+                "timeout": "PT30M",
+                "cleanupPreference": "OnSuccess",
+                "forceUpdateTag": "[parameters('forceUpdateTag')]",
+                "environmentVariables": [
+                  {
+                    "name": "OPS_FQDN",
+                    "value": "[parameters('opsSqlServerFqdn')]"
+                  },
+                  {
+                    "name": "OPS_DB",
+                    "value": "[parameters('opsDatabaseName')]"
+                  },
+                  {
+                    "name": "ETL_FQDN",
+                    "value": "[parameters('etlSqlServerFqdn')]"
+                  },
+                  {
+                    "name": "ETL_DB",
+                    "value": "[parameters('etlDatabaseName')]"
+                  },
+                  {
+                    "name": "SQL_LOGIN",
+                    "value": "[parameters('sqlAdminLogin')]"
+                  },
+                  {
+                    "name": "SQL_PASSWORD",
+                    "secureValue": "[parameters('sqlAdminPassword')]"
+                  },
+                  {
+                    "name": "STORAGE_ACCT",
+                    "value": "[parameters('storageAccountName')]"
+                  },
+                  {
+                    "name": "STORAGE_KEY",
+                    "secureValue": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-05-01').keys[0].value]"
+                  },
+                  {
+                    "name": "CONTAINER",
+                    "value": "[parameters('containerName')]"
+                  },
+                  {
+                    "name": "SEED_BASE_URL",
+                    "value": "[parameters('seedSourceUrl')]"
+                  }
+                ],
+                "scriptContent": "$ErrorActionPreference = 'Stop'\r\n$ProgressPreference = 'SilentlyContinue'\r\n\r\nWrite-Host \"Installing SqlServer module...\"\r\nInstall-Module SqlServer -Force -Scope CurrentUser -AllowClobber -Repository PSGallery | Out-Null\r\nImport-Module SqlServer\r\n\r\nfunction Get-SeedFile([string] $rel) {\r\n  $url = \"$($env:SEED_BASE_URL)/$rel\"\r\n  $out = Join-Path $env:TEMP ([System.IO.Path]::GetFileName($rel))\r\n  Write-Host \"Downloading $url\"\r\n  Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing\r\n  return $out\r\n}\r\n\r\n$opsSql = Get-SeedFile 'data/sql/ops_seed.sql'\r\n$etlSql = Get-SeedFile 'data/sql/etl_seed.sql'\r\n$regions = Get-SeedFile 'data/blob/reference/regions/regions.csv'\r\n\r\nWrite-Host \"Seeding $($env:OPS_DB) on $($env:OPS_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB `\r\n  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `\r\n  -InputFile $opsSql -TrustServerCertificate -QueryTimeout 300 -ConnectionTimeout 60\r\n\r\nWrite-Host \"Seeding $($env:ETL_DB) on $($env:ETL_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB `\r\n  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `\r\n  -InputFile $etlSql -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60\r\n\r\nWrite-Host \"Uploading regions.csv to $($env:STORAGE_ACCT)/$($env:CONTAINER)...\"\r\n$ctx = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCT -StorageAccountKey $env:STORAGE_KEY\r\nSet-AzStorageBlobContent -File $regions -Container $env:CONTAINER -Blob 'regions/regions.csv' -Context $ctx -Force | Out-Null\r\n\r\nWrite-Host \"Seeding complete.\"\r\n$DeploymentScriptOutputs = @{\r\n  status = 'seeded'\r\n  opsDatabase = $env:OPS_DB\r\n  etlDatabase = $env:ETL_DB\r\n  shortcutBlob = \"$($env:CONTAINER)/regions/regions.csv\"\r\n}\r\n"
+              }
+            }
+          ],
+          "outputs": {
+            "status": {
+              "type": "string",
+              "metadata": {
+                "description": "Seed status output."
+              },
+              "value": "[reference(resourceId('Microsoft.Resources/deploymentScripts', 'seed-demo-data'), '2023-08-01').outputs.status]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps')]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage')]"
       ]
     }
   ],

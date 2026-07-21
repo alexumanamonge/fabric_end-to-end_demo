@@ -15,10 +15,11 @@ Fabric action is documented with a **MANUAL** callout.
 [![Visualize](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/visualizebutton.svg?sanitize=true)](https://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2Falexumanamonge%2Ffabric_end-to-end_demo%2Fmain%2Finfra%2Fazuredeploy.json)
 
 Provisions the resource group + both Azure SQL DBs + ADLS Gen2 storage in the
-portal — just pick a region and set the SQL admin password. This provisions
-**infrastructure only**; run the one seeding command in
-[Step 1, Option A](#step-1--deploy--seed-the-azure-sources) afterward to load the
-sample data. Fabric capacity/workspace are still created manually.
+portal, **and automatically seeds the sample data** (a deployment script loads the
+SQL tables and uploads the Shortcut file). Just pick a region and set the SQL
+admin password — all resource names default but are fully customizable
+(resource group, SQL servers/databases, storage account). Fabric
+capacity/workspace are still created manually.
 
 ---
 
@@ -60,28 +61,28 @@ is documented in [`infra/README.md`](infra/README.md).
 
 ### Step 1 — Deploy & seed the Azure sources
 
-**Option A — one-click portal deploy, then seed.** Click the
+**Option A — one-click portal deploy (deploys *and* seeds).** Click the
 [**Deploy to Azure**](#one-click-deploy-the-azure-sources) button above, pick a
-region, and set the SQL admin password. When it finishes, seed the sample data
-(loads the SQL tables + uploads the Shortcut files, and adds your machine's IP to
-the SQL firewall) — the script is idempotent, so it reconciles the existing
-resources and just seeds on top:
+region, set the SQL admin password, and (optionally) customize the resource group
+and resource names. The deployment provisions everything **and runs the automated
+seed** (SQL tables + Shortcut file) — no follow-up command needed. Then continue
+to Step 2.
 
-```powershell
-$env:SQL_ADMIN_PASSWORD = 'the-password-you-set-in-the-portal'
-.\scripts\Deploy-Azure.ps1 -NamePrefix fabdemo -Location eastus2 -SkipDataGen
-```
+> The automated seed runs a deployment script that downloads the seed files from
+> this repo's public raw URL, so the repo must stay public (or set `seedSourceUrl`
+> to your own raw location). To provision without seeding, set `seedData=false`.
 
-**Option B — fully scripted (deploy + seed in one command).**
+**Option B — fully scripted (deploy + local seed in one command).**
 
 ```powershell
 $env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'   # strong, not committed
 .\scripts\Deploy-Azure.ps1 -NamePrefix fabdemo -Location eastus2
 ```
 
-Either path generates/loads demo data, deploys the Bicep, and seeds the two SQL
-DBs + the Shortcut storage. Outputs (server FQDNs, storage endpoint) are saved to
-`infra/deployment-outputs.json`. Details: [`infra/README.md`](infra/README.md).
+The script deploys the Bicep (with `seedData=false`) and seeds locally from your
+machine (also adding your client IP to the SQL firewall). Outputs (server FQDNs,
+storage endpoint) are saved to `infra/deployment-outputs.json`.
+Details: [`infra/README.md`](infra/README.md).
 
 ### Step 2 — Create the Fabric workspace (MANUAL, best practices)
 

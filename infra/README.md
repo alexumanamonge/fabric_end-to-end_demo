@@ -24,16 +24,34 @@ password; all other parameters have sensible defaults.
 
 **Notes**
 - This is a **subscription-scoped** template — it creates the resource group for
-  you (no need to pre-create one).
-- The button **provisions infrastructure only**; it does not seed data. After it
-  completes, run the seeding command in the repo README (Step 1, Option A) to load
-  the SQL tables and upload the Shortcut files.
-- The portal deploy does not add your workstation IP to the SQL firewall. The
-  `Deploy-Azure.ps1` seeding step adds it automatically; alternatively add a
-  firewall rule for your IP in the portal, or enable *Allow Azure services*.
+  you (no need to pre-create one). The resource group name and every resource name
+  (SQL servers, databases, storage account, container) are **parameters** with
+  sensible defaults, so you can customize them at deploy time.
+- **Automated seeding is on by default** (`seedData = true`): a PowerShell
+  deployment script (Azure Container Instance) downloads the seed files from the
+  repo's public raw URL (`seedSourceUrl`), loads both SQL databases with
+  `Invoke-Sqlcmd`, and uploads `regions.csv` to the Shortcut container. Set
+  `seedData = false` to provision without seeding (then use `Seed-Data.ps1`).
+- The seed step reaches SQL through each server's **AllowAllAzureServices**
+  firewall rule and requires the **Microsoft.ContainerInstance** resource provider
+  to be registered in the subscription (usually automatic).
+- Because the seed script pulls files over the public raw URL, the repo must stay
+  **public** for automated seeding — or point `seedSourceUrl` at your own raw host.
 - **Regenerating the template:** if you change the Bicep, recompile with
   `az bicep build --file infra\main.bicep --outfile infra\azuredeploy.json` and
   commit the result so the button stays in sync.
+
+### Key parameters
+
+| Parameter | Default | Purpose |
+|---|---|---|
+| `resourceGroupName` | `rg-<namePrefix>-source` | Resource group to create. |
+| `opsSqlServerName` / `opsDatabaseName` | `sql-<prefix>-ops-<suffix>` / `sqldb-ops` | Mirroring source. |
+| `etlSqlServerName` / `etlDatabaseName` | `sql-<prefix>-etl-<suffix>` / `sqldb-etl` | Copy Job source. |
+| `storageAccountName` / `containerName` | `st<prefix><suffix>` / `reference` | Shortcut source. |
+| `sqlAdminLogin` / `sqlAdminPassword` | `fabricadmin` / *(required)* | SQL admin. |
+| `seedData` | `true` | Run the automated seed deployment script. |
+| `seedSourceUrl` | repo `main` raw URL | Where the seed step downloads files from. |
 
 ## Files
 
@@ -42,6 +60,7 @@ password; all other parameters have sensible defaults.
 | `main.bicep` | Subscription-scoped entry point; creates the RG + all resources. |
 | `modules/sqlServer.bicep` | Reusable Azure SQL logical server + database + firewall. |
 | `modules/storage.bicep` | ADLS Gen2 storage account + container for the shortcut source. |
+| `modules/seed.bicep` | Deployment script that auto-seeds the SQL DBs + uploads the Shortcut file. |
 | `main.bicepparam` | Parameter values. **Never commit real secrets.** |
 | `azuredeploy.json` | ARM template compiled from `main.bicep` — powers the **Deploy to Azure** button. |
 

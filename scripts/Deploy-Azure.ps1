@@ -65,6 +65,7 @@ $deployJson = az deployment sub create `
                aadAdminObjectId=$objectId `
                aadAdminLogin=$upn `
                clientIpAddress=$clientIp `
+               seedData=false `
   --query properties.outputs -o json
 if ($LASTEXITCODE -ne 0) { throw "Bicep deployment failed." }
 

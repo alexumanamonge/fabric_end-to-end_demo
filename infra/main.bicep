@@ -24,6 +24,38 @@ param location string = 'eastus2'
 @description('Resource group name.')
 param resourceGroupName string = 'rg-${namePrefix}-source'
 
+@description('Deterministic suffix to keep globally-unique names stable across redeploys.')
+param uniqueSuffix string = substring(uniqueString(subscription().subscriptionId, namePrefix), 0, 6)
+
+@description('Name of the operational SQL logical server (Mirroring source). Must be globally unique.')
+param opsSqlServerName string = 'sql-${namePrefix}-ops-${uniqueSuffix}'
+
+@description('Operational database name (Mirroring source).')
+param opsDatabaseName string = 'sqldb-ops'
+
+@description('Name of the ETL SQL logical server (Copy Job source). Must be globally unique.')
+param etlSqlServerName string = 'sql-${namePrefix}-etl-${uniqueSuffix}'
+
+@description('ETL database name (Copy Job source).')
+param etlDatabaseName string = 'sqldb-etl'
+
+@description('Storage account name (Shortcut source). Must be globally unique, 3-24 lowercase alphanumerics.')
+@minLength(3)
+@maxLength(24)
+param storageAccountName string = 'st${namePrefix}${uniqueSuffix}'
+
+@description('Blob container that holds the Shortcut reference files.')
+param containerName string = 'reference'
+
+@description('Automatically seed the SQL databases and upload the Shortcut file as part of the deployment (runs a deployment script). Set false to seed later with scripts/Seed-Data.ps1.')
+param seedData bool = true
+
+@description('Base raw URL the automated seed step downloads seed files from (data/sql/*.sql, data/blob/reference/regions/regions.csv).')
+param seedSourceUrl string = 'https://raw.githubusercontent.com/alexumanamonge/fabric_end-to-end_demo/main'
+
+@description('Unique token that forces the seed deployment script to re-run on each deployment.')
+param seedForceUpdateTag string = utcNow()
+
 @description('SQL administrator login.')
 param sqlAdminLogin string = 'fabricadmin'
 
@@ -39,9 +71,6 @@ param aadAdminLogin string = ''
 
 @description('Client public IP to allow through SQL firewall for seeding. Empty to skip.')
 param clientIpAddress string = ''
-
-@description('Deterministic suffix to keep globally-unique names stable across redeploys.')
-param uniqueSuffix string = substring(uniqueString(subscription().subscriptionId, namePrefix), 0, 6)
 
 var tags = {
   workload: 'fabric-end-to-end-demo'
@@ -60,8 +89,8 @@ module sqlOps 'modules/sqlServer.bicep' = {
   scope: rg
   name: 'sqlOps'
   params: {
-    sqlServerName: 'sql-${namePrefix}-ops-${uniqueSuffix}'
-    databaseName: 'sqldb-ops'
+    sqlServerName: opsSqlServerName
+    databaseName: opsDatabaseName
     location: location
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
@@ -77,9 +106,9 @@ module storage 'modules/storage.bicep' = {
   scope: rg
   name: 'storage'
   params: {
-    storageAccountName: 'st${namePrefix}${uniqueSuffix}'
+    storageAccountName: storageAccountName
     location: location
-    containerName: 'reference'
+    containerName: containerName
     tags: tags
   }
 }
@@ -89,14 +118,37 @@ module sqlEtl 'modules/sqlServer.bicep' = {
   scope: rg
   name: 'sqlEtl'
   params: {
-    sqlServerName: 'sql-${namePrefix}-etl-${uniqueSuffix}'
-    databaseName: 'sqldb-etl'
+    sqlServerName: etlSqlServerName
+    databaseName: etlDatabaseName
     location: location
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
     aadAdminObjectId: aadAdminObjectId
     aadAdminLogin: aadAdminLogin
     clientIpAddress: clientIpAddress
+    tags: tags
+  }
+}
+
+// --- Automated seeding (optional) -------------------------------------------
+// Loads the SQL tables and uploads the Shortcut file via a deployment script,
+// so the one-click button deployment is turn-key. Skipped when seedData=false
+// (e.g. scripts/Deploy-Azure.ps1 seeds locally instead).
+module seed 'modules/seed.bicep' = if (seedData) {
+  scope: rg
+  name: 'seedDemoData'
+  params: {
+    location: location
+    opsSqlServerFqdn: sqlOps.outputs.fullyQualifiedDomainName
+    opsDatabaseName: sqlOps.outputs.databaseName
+    etlSqlServerFqdn: sqlEtl.outputs.fullyQualifiedDomainName
+    etlDatabaseName: sqlEtl.outputs.databaseName
+    sqlAdminLogin: sqlAdminLogin
+    sqlAdminPassword: sqlAdminPassword
+    storageAccountName: storage.outputs.storageAccountName
+    containerName: storage.outputs.containerName
+    seedSourceUrl: seedSourceUrl
+    forceUpdateTag: seedForceUpdateTag
     tags: tags
   }
 }
