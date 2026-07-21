@@ -9,24 +9,30 @@
 | Storage (ADLS Gen2) | `st<prefix><suffix>` | Reference file landing | **Shortcut** |
 | Azure SQL DB | `sqldb-etl` | Transactional data (SQL MI stand-in) | **ETL / Copy Job** |
 
-## Fabric items to create (manual)
+## Fabric items (how each is created)
 
-| Item | Suggested name | Purpose |
-|---|---|---|
-| Capacity | (your F SKU) | Compute for the workspace |
-| Domain | `Contoso Analytics` | Catalog / governance grouping |
-| Workspace | `Fabric End-to-End Demo` | Governed collaboration boundary |
-| Lakehouse | `LH_Bronze` | Raw landing from the 3 ingestion patterns |
-| Lakehouse | `LH_Silver` | Cleansed / conformed / combined tables |
-| Lakehouse | `LH_Gold` | Curated tables for consumption |
-| Mirrored DB | `mirror_sqldb_ops` | Mirroring of `sqldb-ops` |
-| Shortcut | `regions` | ADLS Gen2 shortcut (no copy) |
-| Copy Job | `copy_etl_to_bronze` | Batch ETL of `sqldb-etl` tables |
-| Notebooks | `00`–`03` | Medallion transforms + orchestration |
-| Semantic model | `sm_customer360_gold` | Governed Direct Lake metrics (Git-deployable, `*.SemanticModel/`) |
-| Power BI report | `Customer 360 Executive Overview` | Business consumption (Git-deployable, `*.Report/`) |
-| Data Agent | `Customer Insights Agent` | Natural-language consumption (config-as-code) |
-| Fabric IQ ontology | `Contoso Customer 360 Ontology` | Business semantic layer over Gold (config-as-code) |
+> **Git integration creates most of these for you.** When you connect the empty
+> workspace to this repo and run **Update all**, Fabric creates the **Lakehouses,
+> notebooks, semantic model, and report** from the repo — do **not** build those by
+> hand. The **Created by** column below shows what you set up manually (capacity,
+> domain, workspace, ingestion items, AI items) versus what Git provides.
+
+| Item | Suggested name | Purpose | Created by |
+|---|---|---|---|
+| Capacity | (your F SKU) | Compute for the workspace | Manual |
+| Domain | `Contoso Analytics` | Catalog / governance grouping | Manual |
+| Workspace | `Fabric End-to-End Demo` | Governed collaboration boundary | Manual (empty) |
+| Lakehouse | `LH_Bronze` | Raw landing from the 3 ingestion patterns | **Git** |
+| Lakehouse | `LH_Silver` | Cleansed / conformed / combined tables | **Git** |
+| Lakehouse | `LH_Gold` | Curated tables for consumption | **Git** |
+| Notebooks | `00`–`03` | Medallion transforms + orchestration | **Git** |
+| Semantic model | `sm_customer360_gold` | Governed Direct Lake metrics (`*.SemanticModel/`) | **Git** (then bind) |
+| Power BI report | `Customer 360 Executive Overview` | Business consumption (`*.Report/`) | **Git** |
+| Mirrored DB | `mirror_sqldb_ops` | Mirroring of `sqldb-ops` | Manual |
+| Shortcut | `regions` | ADLS Gen2 shortcut (no copy) | Manual |
+| Copy Job | `copy_etl_to_bronze` | Batch ETL of `sqldb-etl` tables | Manual |
+| Data Agent | `Customer Insights Agent` | Natural-language consumption (config-as-code) | Manual |
+| Fabric IQ ontology | `Contoso Customer 360 Ontology` | Business semantic layer over Gold (config-as-code) | Manual |
 
 ## Local assets
 

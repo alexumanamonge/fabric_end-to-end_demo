@@ -1,66 +1,75 @@
-# Fabric Git integration demo
+# Fabric Git integration — connect the workspace to this repo
 
-Fabric Git integration syncs supported Fabric item definitions. It does **not** sync Lakehouse Files or Delta table data.
+Fabric **Git integration** links a workspace to a Git branch and syncs supported
+**Fabric item definitions** (Lakehouse metadata, notebooks, semantic models,
+reports). This repo already contains those items in the correct format, so a single
+**Update all** creates them all in your workspace — you do **not** build them by
+hand.
 
-## Recommended approach for tomorrow's demo
+> **What Git does and does not sync.** Git syncs the *code and metadata* of items
+> (notebook source, Lakehouse definition, semantic model, report). It does **not**
+> sync Lakehouse **Files** or **Delta table data** — those are produced later when
+> you run the notebooks, wire shortcuts/mirroring, and seed SQL.
 
-Use **Fabric-first Git integration**:
+---
 
-1. Connect the Fabric workspace to this repo.
-2. Create the Lakehouses and notebooks in Fabric.
-3. Commit those Fabric-created items back to Git from the Fabric Source control pane.
-4. Make a small notebook change in GitHub.
-5. Pull the change back into Fabric.
+## What gets created when you sync
 
-This avoids hand-authored system files and lets Fabric generate valid item metadata.
-
-## Recommended repo folder for Fabric connection
-
-Connect the Fabric workspace to this repository folder:
-
-```text
-/
-```
-
-Do **not** connect to the old `workspace-items` folder. That folder was removed because Fabric rejected the hand-authored system files.
-
-## What should sync
-
-Fabric should create valid item folders in Git after you commit from the Fabric Source control pane.
-
-| Item | Expected behavior |
+| Repo item | Becomes in your workspace |
 |---|---|
-| Lakehouses created in Fabric | Commit Lakehouse metadata only |
-| Notebooks created/imported in Fabric | Commits `*.Notebook` folders with Fabric-generated system files |
-| Lakehouse files/tables | Not synced by Git; generated when notebooks run |
+| `LH_Bronze.Lakehouse/`, `LH_Silver.Lakehouse/`, `LH_Gold.Lakehouse/` | The three **empty** medallion Lakehouses |
+| `*.Notebook/` folders | The medallion notebooks (`00`–`03`) |
+| `sm_customer360_gold.SemanticModel/` | The Direct Lake semantic model |
+| `Customer 360 Executive Overview.Report/` | The Power BI report |
 
-## Demo flow
+Because these come straight from the repo, their names and internal references stay
+consistent. **Creating any of them manually first causes duplicate items and sync
+conflicts** — start from a completely **empty** workspace.
 
-1. In Fabric workspace settings, connect to GitHub repo `alexumanamonge/fabric_end-to-end_demo`.
-2. Select branch `main`.
-3. Select repository root `/`.
-4. Create Lakehouses `LH_Bronze`, `LH_Silver`, and `LH_Gold` in Fabric.
-5. Pull or create the four notebooks.
-6. Run `03_run_end_to_end`.
-7. In Source control, commit the Fabric-created Lakehouses and notebooks to Git.
-8. Make a small change in GitHub, such as editing a markdown cell or adding a comment to one notebook.
-9. Return to Fabric Source control and pull the incoming change.
-10. Run `03_run_end_to_end`.
-11. Show that Git governed the code assets, while notebook execution created the actual OneLake raw files and tables.
+---
 
-## Key customer talking point
+## Steps (MANUAL — Fabric portal)
 
-Git integration governs the code and metadata lifecycle. Data lifecycle is handled by Fabric runtime operations such as notebooks, pipelines, shortcuts, copy jobs, mirroring, and OneLake security.
+1. Create (or open) an **empty** Fabric workspace on your capacity. Do **not** add
+   any Lakehouses, notebooks, or reports yet.
+2. Open **Workspace settings › Git integration**.
+3. Sign in to **GitHub** and select:
+   - **Repository:** `alexumanamonge/fabric_end-to-end_demo`
+   - **Branch:** `main`
+   - **Folder:** `/` (the repository root — **not** any subfolder)
+4. Click **Connect**, then **Update all**. Fabric reads the repo and creates every
+   item in the table above.
+5. Wait for the sync to finish. The workspace now shows the three Lakehouses, the
+   notebooks, the semantic model, and the report.
 
-This distinction is important: Git should promote the repeatable build logic; Fabric jobs should produce or refresh the data.
+That's it — continue with the rest of the quick start (gateway + seed, ingestion,
+run notebooks, bind the semantic model).
 
-## If Git sync errors
+---
 
-Check these items:
+## Optional: show the two-way Git workflow (nice demo moment)
 
-1. The workspace Git connection is pointed at `/`, not `workspace-items`.
-2. The branch is `main`.
-3. Remove any incoming handcrafted `*.Notebook` or `*.Lakehouse` folders.
-4. Let Fabric create item system files by committing from Fabric to Git.
-5. The user has Workspace Admin or Member permissions.
-6. The tenant supports Notebook and Lakehouse Git integration.
+To demonstrate that Git governs the *code* lifecycle:
+
+1. In GitHub, make a small change — e.g. edit a markdown cell or add a comment in
+   one notebook — and commit to `main`.
+2. In Fabric, open **Source control**; the change appears as **incoming**.
+3. Click **Update** to pull it into the workspace.
+4. Re-run `03_run_end_to_end` to show the updated code executing.
+
+**Talking point:** Git integration promotes the repeatable **build logic** (code and
+metadata). The **data lifecycle** is handled by Fabric runtime operations —
+notebooks, pipelines, shortcuts, copy jobs, mirroring, and OneLake security. Git
+governs the code; Fabric jobs produce and refresh the data.
+
+---
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `FailedToParseContent` on `shortcuts.metadata.json` | You started from a non-empty workspace, or an older clone. Start from an **empty** workspace and sync `main`; the repo ships valid metadata. |
+| Duplicate `LH_Bronze` / notebooks after sync | You created items by hand before syncing. Delete the manual copies (or start a fresh empty workspace) and **Update all** again. |
+| Report fails to import (`Cannot find file 'version.json'`) | Use the current `main` branch — the report includes the required `definition/version.json`. |
+| Nothing syncs / items missing | Confirm the connection points to folder **`/`** (root), branch **`main`**, and that you clicked **Update all**. |
+| Permission errors | You need **Workspace Admin** or **Member**, and the tenant must allow Notebook/Lakehouse Git integration. |

@@ -112,6 +112,12 @@ Test/Prod are populated by the deployment pipeline.
 
 ## 4. Security & least privilege
 
+> **Order matters:** the Lakehouses, notebooks, semantic model, and report don't
+> exist until **Git integration (Section 6)** creates them. In practice, connect
+> Git and run **Update all right after you create the empty workspace** (Section
+> 3), *then* apply the security, labels, and endorsement below to the items that
+> now exist.
+
 **MANUAL — Workspace › Manage access.**
 
 Assign the *minimum* role each persona needs:
@@ -141,16 +147,17 @@ is covered in [`../fabric/governance/checklist.md`](../fabric/governance/checkli
 
 ## 6. Git integration & deployment pipelines
 
+> **Do this right after Section 3** (empty workspace created), before applying the
+> security/labels/endorsement in Sections 4–5 — those act on the items Git creates.
+
 **MANUAL — Workspace settings › Git integration.**
 
 1. Connect the **empty** workspace to this GitHub repo, branch `main`, folder `/`,
    then run **Update all** — this creates `LH_Bronze` / `LH_Silver` / `LH_Gold`,
    the notebooks, the semantic model, and the report from the repo. Do not
-   pre-create these items.
-2. Let **Fabric generate** any remaining item system files; commit Fabric-created
-   items back from the Source control pane. See
+   pre-create these items. Full walkthrough:
    [`fabric-git-integration-demo.md`](fabric-git-integration-demo.md).
-3. For multi-environment promotion, add a **Deployment Pipeline**
+2. To promote across environments, add a **Deployment Pipeline**
    (Dev → Test → Prod) and use deployment rules to swap data source bindings per
    stage.
 

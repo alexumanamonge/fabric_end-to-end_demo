@@ -114,19 +114,34 @@ Shortcut reference file to the (public) storage account. Outputs (server FQDNs,
 VNet name, Fabric-delegated subnet name, storage endpoint) are saved to
 `infra/deployment-outputs.json`. Details: [`infra/README.md`](infra/README.md).
 
-### Step 2 — Create the Fabric workspace (MANUAL, best practices)
+### Step 2 — Create the workspace and sync all Fabric items from Git (MANUAL)
 
-Follow [`docs/fabric-workspace-setup.md`](docs/fabric-workspace-setup.md) to create
-the capacity, domain, workspace, `LH_Bronze` / `LH_Silver` / `LH_Gold`, roles, and
-Git integration.
+This is the key step: you create an **empty** Fabric workspace, connect it to this
+GitHub repo, and let **Git integration create every Fabric item for you** — the
+three Lakehouses (`LH_Bronze` / `LH_Silver` / `LH_Gold`), the notebooks, the
+semantic model, and the report. **Do not create these by hand.**
+
+1. Create a **Fabric capacity** and an **empty workspace**, and assign roles —
+   full best-practice detail in
+   [`docs/fabric-workspace-setup.md`](docs/fabric-workspace-setup.md).
+2. In **Workspace settings › Git integration**, connect to this repo, branch
+   `main`, folder `/`, then click **Update all**. Fabric provisions all the items
+   listed above from the repo. Walkthrough:
+   [`docs/fabric-git-integration-demo.md`](docs/fabric-git-integration-demo.md).
+
+> Why Git-first: the Lakehouses, notebooks, semantic model, and report already
+> exist in this repo as valid Fabric items. Letting Git create them keeps their
+> names and internal references intact — creating them manually causes duplicate
+> items and sync conflicts.
 
 ### Step 3 — Connect the managed VNet data gateway & seed SQL (MANUAL)
 
-In the Fabric portal, create a **virtual network data gateway** on the delegated
-subnet (`snet-fabric-gateway` in `vnet-fabric-spoke`), create connections to the
-two private SQL servers with your organizational account, then **seed the databases
-from Fabric** by running the two SQL seed scripts through the gateway. Full steps:
-[`docs/networking-gateway.md`](docs/networking-gateway.md).
+The two Azure SQL databases are **private** (no public endpoint) and start
+**empty**. In the Fabric portal you: (1) create a **virtual network data gateway**
+on the delegated subnet (`snet-fabric-gateway` in `vnet-fabric-spoke`); (2) create
+connections to the two SQL servers with your organizational account; (3) **seed the
+databases from Fabric** by running the two SQL scripts through the gateway. Full
+steps: [`docs/networking-gateway.md`](docs/networking-gateway.md).
 
 ### Step 4 — Wire the three ingestion patterns (MANUAL)
 
@@ -141,39 +156,40 @@ from Fabric** by running the two SQL seed scripts through the gateway. Full step
 
 ### Step 5 — Run the medallion pipeline
 
-1. Pull the Git-connected `*.Notebook` items into the workspace.
+The notebooks were already created in your workspace by Git integration (Step 2).
+
+1. Open the workspace and find the `*.Notebook` items (e.g. `03_run_end_to_end`).
 2. If Fabric can't auto-resolve the workspace name, set `WORKSPACE_NAME` in each notebook.
 3. Run **`03_run_end_to_end`** (leave `RUN_OFFLINE_SEED = False`).
 
 > **No Azure sources handy?** Set `RUN_OFFLINE_SEED = True` in `03_run_end_to_end`
 > (or run `00_generate_raw_data`) to seed Bronze offline and still demo the medallion.
 
-### Step 6 — Semantic model, report, Data Agent, ontology
+### Step 6 — Bind the semantic model, then build the Data Agent & ontology
 
-Two ways to get the semantic model + report:
+The `sm_customer360_gold` semantic model and the `Customer 360 Executive Overview`
+report were already created in your workspace by Git integration (Step 2). You just
+need one binding step, then build the two AI items:
 
-- **Git-deployable (recommended):** connect the workspace to this repo via
-  **Fabric › Git integration**. The `sm_customer360_gold.SemanticModel/` (TMDL)
-  and `Customer 360 Executive Overview.Report/` (PBIR) items sync in directly.
-  Then do the **one-time bind** in
-  [`fabric/semantic-model/README.md`](fabric/semantic-model/README.md) (point the
-  Direct Lake source at your `LH_Gold`). The report is pre-built to the spec.
-- **Manual:** create `sm_customer360_gold` (Direct Lake) over `LH_Gold`, add
-  measures from [`fabric/semantic-model/measures.dax`](fabric/semantic-model/measures.dax),
-  and build the report per [`docs/power-bi-report-spec.md`](docs/power-bi-report-spec.md).
+1. **Bind the semantic model** (one time): point its Direct Lake source at *your*
+   `LH_Gold` — see [`fabric/semantic-model/README.md`](fabric/semantic-model/README.md).
+   The report is pre-built to spec and refreshes once the model is bound.
+2. Create the **Data Agent** per
+   [`fabric/data-agent/build-guide.md`](fabric/data-agent/build-guide.md)
+   (config-as-code in [`agent-config.yaml`](fabric/data-agent/agent-config.yaml)).
+3. Build the **Fabric IQ ontology** per
+   [`fabric/ontology/README.md`](fabric/ontology/README.md)
+   (config-as-code in [`ontology.yaml`](fabric/ontology/ontology.yaml)).
 
-Then:
+> **Prefer to build them by hand instead?** You can create `sm_customer360_gold`
+> (Direct Lake over `LH_Gold`) with the measures in
+> [`fabric/semantic-model/measures.dax`](fabric/semantic-model/measures.dax) and
+> build the report from [`docs/power-bi-report-spec.md`](docs/power-bi-report-spec.md).
 
-- Create the **Data Agent** per
-  [`fabric/data-agent/build-guide.md`](fabric/data-agent/build-guide.md)
-  (config-as-code in [`agent-config.yaml`](fabric/data-agent/agent-config.yaml)).
-- Build the **Fabric IQ ontology** per
-  [`fabric/ontology/README.md`](fabric/ontology/README.md)
-  (config-as-code in [`ontology.yaml`](fabric/ontology/ontology.yaml)).
-
-> The hand-authored TMDL/PBIR items are schema-valid but should be opened once in
-> Power BI Desktop (the paired `.pbip`) to let Desktop normalize them; see each
-> item's README.
+> **Tip:** the semantic model and report in this repo are valid but hand-authored.
+> They will work as-is; if you want Power BI Desktop to "bless" and re-save them in
+> its own format, open the paired `.pbip` once in Desktop (optional). Each item's
+> README explains this.
 
 ### Step 7 — Governance & security
 

@@ -29,11 +29,21 @@ Keep the `.Report` and `.SemanticModel` folders **as siblings** (they are, at th
 repo root). When deploying to Fabric via **Git integration**, both items land in
 the same workspace and stay bound.
 
-## One-time open in Power BI Desktop (recommended)
+## One-time open in Power BI Desktop (optional)
 
-This PBIR is hand-authored to valid schemas but has never been opened by Desktop.
-Open the paired `.pbip` once so Desktop can normalize formatting and assign any
-internal IDs, then save. After that it round-trips cleanly through Git.
+This report is written directly as text files (the **PBIR** format) so it works
+with Git. It has never been opened in the **Power BI Desktop** app.
+
+It will deploy and run as-is. If you want Desktop to "bless" the files — tidy the
+formatting and stamp its own internal IDs so future edits in Desktop round-trip
+cleanly — do this once:
+
+1. Open the paired **`.pbip`** file (the Power BI *project* file that pairs the
+   `.Report` and `.SemanticModel` folders) in **Power BI Desktop**.
+2. Save. That's it — Desktop rewrites the files in its normalized form.
+
+This step is **optional** and only needed if you plan to edit the report in
+Desktop; the Git-deployed version works without it.
 
 > Schemas used: report `3.1.0`, page `2.0.0`, visualContainer `2.4.0`,
 > pagesMetadata `1.0.0`, platform `2.0.0`. All field bindings reference table and

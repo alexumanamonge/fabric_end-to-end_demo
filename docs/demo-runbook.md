@@ -7,15 +7,18 @@ A suggested order for delivering the demo live. Full setup detail is in
 
 1. `scripts\Deploy-Azure.ps1` — deploy both RGs (workload + spoke networking) and
    upload the Shortcut reference blob. The SQL databases start empty.
-2. Create Fabric capacity, domain, workspace, and the three Lakehouses
+2. Create the Fabric capacity, domain, and an **empty** workspace
    (`docs\fabric-workspace-setup.md`).
-3. Create the **managed VNet data gateway** in Fabric on the delegated subnet, then
+3. **Connect the workspace to this repo via Git integration and run Update all**
+   (`docs\fabric-git-integration-demo.md`). This creates the three Lakehouses, the
+   notebooks, the semantic model, and the report — do **not** build them by hand.
+4. Create the **managed VNet data gateway** in Fabric on the delegated subnet, then
    **seed the SQL databases from Fabric** through it (`docs\networking-gateway.md`).
-4. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`) — SQL
+5. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`) — SQL
    connections select the managed VNet data gateway.
-5. Run `03_run_end_to_end`; deploy the semantic model + report (Git integration),
+6. Run `03_run_end_to_end`; bind the semantic model (`fabric\semantic-model\README.md`),
    then build the Data Agent and Fabric IQ ontology.
-6. Apply governance (`fabric\governance\checklist.md`).
+7. Apply governance (`fabric\governance\checklist.md`).
 
 ## 1. Admin & structure (5 min)
 
@@ -48,8 +51,8 @@ A suggested order for delivering the demo live. Full setup detail is in
 
 ## 5. Semantic model & Power BI (6 min)
 
-- Deploy `sm_customer360_gold` (Direct Lake) + `Customer 360 Executive Overview`
-  via **Git integration** (or create manually); one-time bind per
+- `sm_customer360_gold` (Direct Lake) + `Customer 360 Executive Overview` were
+  already created by Git integration (step 0.3); just do the one-time bind per
   `fabric\semantic-model\README.md`.
 - Report pages: Executive Overview, Customer 360, Support & Governance.
 - Optionally apply semantic-model RLS (`fabric\semantic-model\rls-roles.md`) and
