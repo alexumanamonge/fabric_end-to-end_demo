@@ -18,19 +18,15 @@
 # MARKDOWN ********************
 
 # # 01 - Bronze to Silver
-#
-# Reads the **raw** data landed in `LH_Bronze` by the three ingestion patterns and
+# # Reads the **raw** data landed in `LH_Bronze` by the three ingestion patterns and
 # produces cleansed, conformed, combined **Silver** tables in `LH_Silver`.
-#
-# **Bronze inputs (canonical locations):**
-#
-# | Entity | Location | Ingestion pattern |
+# # **Bronze inputs (canonical locations):**
+# # | Entity | Location | Ingestion pattern |
 # |---|---|---|
 # | customers, products | `LH_Bronze/Tables/*` | Mirroring (`sqldb-ops`) |
 # | orders, support_tickets | `LH_Bronze/Tables/*` | ETL / Copy Job (`sqldb-etl`) |
 # | regions | `LH_Bronze/Files/shortcuts/regions` | Shortcut (ADLS Gen2) |
-#
-# If Bronze is empty, wire the ingestion (see `docs/ingestion-*.md`) or run the
+# # If Bronze is empty, wire the ingestion (see `docs/ingestion-*.md`) or run the
 # optional `00_generate_raw_data` notebook first.
 
 # CELL ********************

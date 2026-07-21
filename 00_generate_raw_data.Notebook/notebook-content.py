@@ -18,17 +18,14 @@
 # MARKDOWN ********************
 
 # # 00 - (OPTIONAL) Offline Bronze seed
-#
-# **You usually do NOT run this notebook.** The primary demo lands Bronze data from
+# # **You usually do NOT run this notebook.** The primary demo lands Bronze data from
 # three real Azure ingestion patterns:
-#
-# | Bronze object | Real ingestion pattern | Setup guide |
+# # | Bronze object | Real ingestion pattern | Setup guide |
 # |---|---|---|
 # | `Tables/customers`, `Tables/products` | **Mirroring** from `sqldb-ops` | `docs/ingestion-mirroring.md` |
 # | `Files/shortcuts/regions/regions.csv` | **Shortcut** from ADLS Gen2 | `docs/ingestion-shortcut.md` |
 # | `Tables/orders`, `Tables/support_tickets` | **ETL / Copy Job** from `sqldb-etl` | `docs/ingestion-etl-copyjob.md` |
-#
-# Run this notebook **only** to seed Bronze with the same shapes **without** deploying
+# # Run this notebook **only** to seed Bronze with the same shapes **without** deploying
 # Azure sources (e.g. a laptop-only dry run). It writes the identical canonical
 # locations that the real ingestion produces, so `01_raw_to_silver` works either way.
 

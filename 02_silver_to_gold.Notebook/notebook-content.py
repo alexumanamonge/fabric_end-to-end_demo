@@ -18,12 +18,10 @@
 # MARKDOWN ********************
 
 # # 02 - Silver to Gold
-#
-# Reads conformed Silver tables from `LH_Silver` and creates business-ready **Gold**
+# # Reads conformed Silver tables from `LH_Silver` and creates business-ready **Gold**
 # tables in `LH_Gold` for the Direct Lake semantic model, Power BI report, and Data
 # Agent.
-#
-# `gold_customer_360` intentionally keeps `account_owner`, `country`, and
+# # `gold_customer_360` intentionally keeps `account_owner`, `country`, and
 # `sensitivity_tier` so the governance demo can apply **row-level** and
 # **column-level** security (see `fabric/governance/`).
 

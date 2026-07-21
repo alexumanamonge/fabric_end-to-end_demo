@@ -18,10 +18,8 @@
 # MARKDOWN ********************
 
 # # 03 - Run end-to-end
-#
-# Orchestrates the medallion pipeline across `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
-#
-# - **Primary flow (real ingestion):** leave `RUN_OFFLINE_SEED = False`. Bronze is
+# # Orchestrates the medallion pipeline across `LH_Bronze`, `LH_Silver`, and `LH_Gold`.
+# # - **Primary flow (real ingestion):** leave `RUN_OFFLINE_SEED = False`. Bronze is
 #   populated by Mirroring + Shortcut + Copy Job (see `docs/ingestion-*.md`). This
 #   notebook then runs Silver and Gold.
 # - **Offline dry run:** set `RUN_OFFLINE_SEED = True` to first run
