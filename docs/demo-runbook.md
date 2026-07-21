@@ -5,13 +5,17 @@ A suggested order for delivering the demo live. Full setup detail is in
 
 ## 0. Pre-demo (once)
 
-1. `scripts\Deploy-Azure.ps1` — deploy + seed Azure sources.
-2. Create Fabric capacity, domain, workspace, and the three Lakehouses
+1. `scripts\Deploy-Azure.ps1` — deploy both RGs (workload + spoke networking) and
+   seed the Azure sources from the gateway VM.
+2. Install + register the on-prem data gateway on the gateway VM
+   (`docs\networking-gateway.md`) so Fabric can reach the private SQL endpoints.
+3. Create Fabric capacity, domain, workspace, and the three Lakehouses
    (`docs\fabric-workspace-setup.md`).
-3. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`).
-4. Run `03_run_end_to_end`; deploy the semantic model + report (Git integration),
+4. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`) — SQL
+   connections select the VNet data gateway.
+5. Run `03_run_end_to_end`; deploy the semantic model + report (Git integration),
    then build the Data Agent and Fabric IQ ontology.
-5. Apply governance (`fabric\governance\checklist.md`).
+6. Apply governance (`fabric\governance\checklist.md`).
 
 ## 1. Admin & structure (5 min)
 

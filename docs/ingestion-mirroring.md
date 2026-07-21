@@ -17,6 +17,9 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 - Your Entra ID account with `db_owner` on `sqldb-ops` (granted automatically by
   the deployment when you pass `aadAdminObjectId`/`aadAdminLogin`). The servers are
   **Entra ID-only** — there is no SQL login/password.
+- The **on-premises data gateway installed on the gateway VM** and online in
+  Fabric — the SQL servers are private-endpoint-only, so the connection must go
+  through it. See [`networking-gateway.md`](networking-gateway.md).
 
 ## Steps (MANUAL — Fabric portal)
 
@@ -24,6 +27,8 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 2. **New connection:**
    - Server: `<opsSqlServerFqdn>` (e.g. `sql-ops-xxxxxxxx.database.windows.net`)
    - Database: `sqldb-ops`
+   - **Data gateway:** select your VNet gateway (the one installed on the gateway
+     VM) — required because SQL has no public endpoint.
    - Authentication: **Organizational account** (Entra ID) — sign in with the
      account that was granted `db_owner`. (Basic/SQL auth is disabled.)
 3. Select tables to mirror: **`dbo.customers`** and **`dbo.products`**.

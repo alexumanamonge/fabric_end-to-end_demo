@@ -4,9 +4,14 @@
   Microsoft Entra authentication (no SQL password).
 
 .DESCRIPTION
-  The one-click / Deploy-Azure.ps1 deployment already seeds the databases via an
-  in-template deployment script. Use THIS helper only to re-run the seed locally
-  (e.g. after regenerating data), or if you deployed with -SkipSeed / seedData=false.
+  The deployment already seeds the databases automatically from the gateway VM
+  (scripts\vm-seed.ps1, run by its Custom Script Extension). Use THIS helper only
+  to re-run the seed by hand.
+
+  IMPORTANT: the SQL servers are private-endpoint-only, so this script must run
+  from a host INSIDE the spoke VNet - i.e. RDP into the gateway VM and run it
+  there (or from another peered/VNet-connected machine). It will NOT work from a
+  laptop over the public internet.
 
   - Authenticates to Azure SQL with YOUR Entra access token (az account
     get-access-token). You must already have db_owner on the databases - the

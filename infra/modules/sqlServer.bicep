@@ -42,13 +42,8 @@ param databaseSkuName string = 'GP_S_Gen5_2'
 @description('SKU tier for the database.')
 param databaseSkuTier string = 'GeneralPurpose'
 
-@description('Client public IP to allow through the firewall (for the seeding script). Empty to skip.')
-param clientIpAddress string = ''
-
 @description('Resource tags.')
 param tags object = {}
-
-var hasClientIp = !empty(clientIpAddress)
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
   name: sqlServerName
@@ -63,7 +58,11 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
     administratorLoginPassword: administratorLoginPassword
     version: '12.0'
     minimalTlsVersion: '1.2'
-    publicNetworkAccess: 'Enabled'
+    // Public network access is DISABLED to satisfy org policy; the server is
+    // reached only through its private endpoint (see infra/modules/network.bicep
+    // + privateEndpoint.bicep). No firewall rules are created (they are denied
+    // when the public endpoint is disabled).
+    publicNetworkAccess: 'Disabled'
     // Microsoft Entra-only authentication (SQL auth disabled) to satisfy org policy.
     administrators: {
       administratorType: 'ActiveDirectory'
@@ -93,25 +92,8 @@ resource sqlDatabase 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   }
 }
 
-// Allow other Azure services (incl. Fabric) to reach the server.
-resource allowAzure 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
-  parent: sqlServer
-  name: 'AllowAllAzureServices'
-  properties: {
-    startIpAddress: '0.0.0.0'
-    endIpAddress: '0.0.0.0'
-  }
-}
-
-// Allow the operator's client IP so the seeding script can connect and load data.
-resource allowClient 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = if (hasClientIp) {
-  parent: sqlServer
-  name: 'AllowClientIp'
-  properties: {
-    startIpAddress: clientIpAddress
-    endIpAddress: clientIpAddress
-  }
-}
+@description('SQL server resource id (used to create the private endpoint).')
+output sqlServerId string = sqlServer.id
 
 @description('SQL server resource name.')
 output sqlServerName string = sqlServer.name

@@ -7,7 +7,14 @@
 //   2. Storage (ADLS Gen2)      -> OneLake SHORTCUT        (regions reference)
 //   3. Azure SQL DB  sqldb-etl  -> Fabric ETL / Copy Job   (orders, tickets)
 //
-// Subscription-scoped so a single deployment creates the resource group and
+// Networking (hub-spoke SPOKE only): the SQL servers are Entra-only AND
+// public-network-access-disabled (org policy). They are reached through private
+// endpoints in a spoke VNet deployed to a SEPARATE networking resource group.
+// A Windows "VNet data gateway" VM in the spoke lets Fabric reach the private
+// SQL endpoints and also runs the demo seed from inside the VNet. The hub VNet
+// and VNet peering are OUT OF SCOPE for this template.
+//
+// Subscription-scoped so a single deployment creates both resource groups and
 // all resources. Fabric capacity + workspace are created manually by the user.
 // ===========================================================================
 
@@ -16,8 +23,11 @@ targetScope = 'subscription'
 @description('Azure region for all resources.')
 param location string = 'eastus2'
 
-@description('Name of the resource group to create. Use any name allowed by Azure.')
+@description('Name of the workload resource group to create (SQL, storage, identity). Use any name allowed by Azure.')
 param resourceGroupName string = 'rg-fabric-e2e-demo'
+
+@description('Name of the NETWORKING resource group to create (spoke VNet, private endpoints, gateway VM). Hub-spoke: hub + peering are out of scope.')
+param networkResourceGroupName string = 'rg-fabric-e2e-network'
 
 @description('Name of the operational SQL logical server (Mirroring source). Globally unique; lowercase letters, numbers, and hyphens. Default is collision-safe - replace with your own name if you prefer.')
 param opsSqlServerName string = 'sql-ops-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
@@ -64,7 +74,40 @@ param aadAdminObjectId string = ''
 @description('UPN / login of the deploying user, used for the db_owner grant. Empty to skip the grant.')
 param aadAdminLogin string = ''
 
-@description('Client public IP to allow through SQL firewall for seeding. Empty to skip.')
+// --- Networking (spoke) -----------------------------------------------------
+@description('Name of the spoke virtual network to create in the networking RG.')
+param vnetName string = 'vnet-fabric-spoke'
+
+@description('Address space for the spoke VNet.')
+param vnetAddressPrefix string = '10.20.0.0/16'
+
+@description('Subnet prefix for the SQL private endpoints.')
+param privateEndpointSubnetPrefix string = '10.20.1.0/24'
+
+@description('Subnet prefix for the VNet data gateway VM.')
+param gatewaySubnetPrefix string = '10.20.2.0/24'
+
+@description('Name of the private endpoint for the operational SQL server.')
+param opsPrivateEndpointName string = 'pe-sql-ops'
+
+@description('Name of the private endpoint for the ETL SQL server.')
+param etlPrivateEndpointName string = 'pe-sql-etl'
+
+// --- Gateway VM -------------------------------------------------------------
+@description('Name of the VNet data gateway VM.')
+param gatewayVmName string = 'vm-fabric-gw'
+
+@description('Gateway VM size.')
+param gatewayVmSize string = 'Standard_D2s_v3'
+
+@description('Gateway VM administrator username.')
+param vmAdminUsername string = 'fabricadmin'
+
+@description('Gateway VM administrator password. Generated default so no input is required; reset in the portal to RDP and install the data gateway.')
+@secure()
+param vmAdminPassword string = 'Gw!${uniqueString(subscription().subscriptionId, networkResourceGroupName, 'vmpwd')}Aa9'
+
+@description('Your public IP, allowed to RDP (3389) to the gateway VM. Empty = no inbound RDP rule (use Bastion / add later).')
 param clientIpAddress string = ''
 
 var tags = {
@@ -75,6 +118,12 @@ var tags = {
 
 resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   name: resourceGroupName
+  location: location
+  tags: tags
+}
+
+resource rgNet 'Microsoft.Resources/resourceGroups@2023-07-01' = {
+  name: networkResourceGroupName
   location: location
   tags: tags
 }
@@ -106,7 +155,6 @@ module sqlOps 'modules/sqlServer.bicep' = {
     aadAdminObjectId: identity.outputs.principalId
     aadAdminLogin: identity.outputs.name
     aadAdminPrincipalType: 'Application'
-    clientIpAddress: clientIpAddress
     tags: tags
   }
 }
@@ -136,37 +184,91 @@ module sqlEtl 'modules/sqlServer.bicep' = {
     aadAdminObjectId: identity.outputs.principalId
     aadAdminLogin: identity.outputs.name
     aadAdminPrincipalType: 'Application'
-    clientIpAddress: clientIpAddress
     tags: tags
   }
 }
 
-// --- Automated seeding (optional) -------------------------------------------
-// Loads the SQL tables and uploads the Shortcut file via a deployment script,
-// so the one-click button deployment is turn-key. Skipped when seedData=false
-// (e.g. scripts/Deploy-Azure.ps1 seeds locally instead).
-module seed 'modules/seed.bicep' = if (seedData) {
-  scope: rg
-  name: 'seedDemoData'
+// --- Spoke VNet + private DNS (networking RG) --------------------------------
+module network 'modules/network.bicep' = {
+  scope: rgNet
+  name: 'spokeNetwork'
   params: {
+    vnetName: vnetName
     location: location
-    seedIdentityId: identity.outputs.id
+    vnetAddressPrefix: vnetAddressPrefix
+    privateEndpointSubnetPrefix: privateEndpointSubnetPrefix
+    gatewaySubnetPrefix: gatewaySubnetPrefix
+    tags: tags
+  }
+}
+
+// --- Private endpoints for both SQL servers (networking RG) ------------------
+module peOps 'modules/privateEndpoint.bicep' = {
+  scope: rgNet
+  name: 'peSqlOps'
+  params: {
+    name: opsPrivateEndpointName
+    location: location
+    subnetId: network.outputs.privateEndpointSubnetId
+    sqlServerId: sqlOps.outputs.sqlServerId
+    sqlPrivateDnsZoneId: network.outputs.sqlPrivateDnsZoneId
+    tags: tags
+  }
+}
+
+module peEtl 'modules/privateEndpoint.bicep' = {
+  scope: rgNet
+  name: 'peSqlEtl'
+  params: {
+    name: etlPrivateEndpointName
+    location: location
+    subnetId: network.outputs.privateEndpointSubnetId
+    sqlServerId: sqlEtl.outputs.sqlServerId
+    sqlPrivateDnsZoneId: network.outputs.sqlPrivateDnsZoneId
+    tags: tags
+  }
+}
+
+// --- VNet data gateway VM (networking RG) ------------------------------------
+// Fabric reaches the private SQL endpoints via an on-prem data gateway installed
+// on this VM (MANUAL). It also runs the demo seed from inside the VNet when
+// seedData=true (depends on the private endpoints being ready so DNS resolves).
+module gatewayVm 'modules/gatewayVm.bicep' = {
+  scope: rgNet
+  name: 'gatewayVm'
+  dependsOn: [
+    peOps
+    peEtl
+  ]
+  params: {
+    vmName: gatewayVmName
+    location: location
+    subnetId: network.outputs.gatewaySubnetId
+    uamiId: identity.outputs.id
+    uamiClientId: identity.outputs.clientId
+    adminUsername: vmAdminUsername
+    adminPassword: vmAdminPassword
+    vmSize: gatewayVmSize
+    clientIpAddress: clientIpAddress
+    seedData: seedData
+    storageResourceGroupName: resourceGroupName
+    storageAccountName: storage.outputs.storageAccountName
+    containerName: storage.outputs.containerName
     opsSqlServerFqdn: sqlOps.outputs.fullyQualifiedDomainName
     opsDatabaseName: sqlOps.outputs.databaseName
     etlSqlServerFqdn: sqlEtl.outputs.fullyQualifiedDomainName
     etlDatabaseName: sqlEtl.outputs.databaseName
     grantObjectId: aadAdminObjectId
     grantLogin: aadAdminLogin
-    storageAccountName: storage.outputs.storageAccountName
-    containerName: storage.outputs.containerName
     seedSourceUrl: seedSourceUrl
-    forceUpdateTag: seedForceUpdateTag
+    seedForceUpdateTag: seedForceUpdateTag
     tags: tags
   }
 }
 
 // --- Outputs consumed by the seeding script and the Fabric setup docs -------
 output resourceGroupName string = rg.name
+output networkResourceGroupName string = rgNet.name
 output location string = location
 
 output opsSqlServerFqdn string = sqlOps.outputs.fullyQualifiedDomainName
@@ -183,3 +285,9 @@ output sqlAdminLogin string = sqlAdminLogin
 
 output seedIdentityName string = identity.outputs.name
 output seedIdentityPrincipalId string = identity.outputs.principalId
+
+output vnetName string = vnetName
+output gatewayVmName string = gatewayVm.outputs.vmName
+output gatewayVmPublicIp string = gatewayVm.outputs.publicIpAddress
+output gatewayVmPrivateIp string = gatewayVm.outputs.privateIpAddress
+output vmAdminUsername string = vmAdminUsername
