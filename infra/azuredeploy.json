@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "14105865445832619280"
+      "templateHash": "6984444470149594062"
     }
   },
   "parameters": {
@@ -20,14 +20,14 @@
       "type": "string",
       "defaultValue": "rg-fabric-e2e-demo",
       "metadata": {
-        "description": "Name of the workload resource group to create (SQL, storage, identity). Use any name allowed by Azure."
+        "description": "Name of the workload resource group to create (SQL, storage). Use any name allowed by Azure."
       }
     },
     "networkResourceGroupName": {
       "type": "string",
       "defaultValue": "rg-fabric-e2e-network",
       "metadata": {
-        "description": "Name of the NETWORKING resource group to create (spoke VNet, private endpoints, gateway VM). Hub-spoke: hub + peering are out of scope."
+        "description": "Name of the NETWORKING resource group to create (spoke VNet, private endpoints, Fabric-delegated subnet). Hub-spoke: hub + peering are out of scope."
       }
     },
     "opsSqlServerName": {
@@ -74,34 +74,6 @@
         "description": "Blob container that holds the Shortcut reference files."
       }
     },
-    "seedIdentityName": {
-      "type": "string",
-      "defaultValue": "[format('id-fabric-seed-{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName')))]",
-      "metadata": {
-        "description": "Name of the user-assigned managed identity that acts as the SQL Entra admin and runs the seed script. Default is collision-safe."
-      }
-    },
-    "seedData": {
-      "type": "bool",
-      "defaultValue": true,
-      "metadata": {
-        "description": "Automatically seed the SQL databases and upload the Shortcut file as part of the deployment (runs a deployment script). Set false to seed later with scripts/Seed-Data.ps1."
-      }
-    },
-    "seedSourceUrl": {
-      "type": "string",
-      "defaultValue": "https://raw.githubusercontent.com/alexumanamonge/fabric_end-to-end_demo/main",
-      "metadata": {
-        "description": "Base raw URL the automated seed step downloads seed files from (data/sql/*.sql, data/blob/reference/regions/regions.csv)."
-      }
-    },
-    "seedForceUpdateTag": {
-      "type": "string",
-      "defaultValue": "[utcNow()]",
-      "metadata": {
-        "description": "Unique token that forces the seed deployment script to re-run on each deployment."
-      }
-    },
     "sqlAdminLogin": {
       "type": "string",
       "defaultValue": "fabricadmin",
@@ -120,14 +92,26 @@
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Object id of the deploying user (your Entra objectId) to grant db_owner on both databases. Empty to skip the grant."
+        "description": "Object id of the Entra principal to set as the SQL admin on both servers. Leave empty to use the DEPLOYING USER (recommended) so you can seed from Fabric with your own account."
       }
     },
     "aadAdminLogin": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "UPN / login of the deploying user, used for the db_owner grant. Empty to skip the grant."
+        "description": "Login / UPN of the Entra SQL admin. Leave empty to use the deploying user."
+      }
+    },
+    "aadAdminPrincipalType": {
+      "type": "string",
+      "defaultValue": "User",
+      "allowedValues": [
+        "User",
+        "Group",
+        "Application"
+      ],
+      "metadata": {
+        "description": "Entra principal type of the SQL admin: User (default, deploying user), Group, or Application (managed identity / service principal)."
       }
     },
     "vnetName": {
@@ -151,11 +135,11 @@
         "description": "Subnet prefix for the SQL private endpoints."
       }
     },
-    "gatewaySubnetPrefix": {
+    "fabricGatewaySubnetPrefix": {
       "type": "string",
       "defaultValue": "10.20.2.0/24",
       "metadata": {
-        "description": "Subnet prefix for the VNet data gateway VM."
+        "description": "Subnet prefix DELEGATED to Fabric for the managed virtual network data gateway."
       }
     },
     "opsPrivateEndpointName": {
@@ -171,41 +155,6 @@
       "metadata": {
         "description": "Name of the private endpoint for the ETL SQL server."
       }
-    },
-    "gatewayVmName": {
-      "type": "string",
-      "defaultValue": "vm-fabric-gw",
-      "metadata": {
-        "description": "Name of the VNet data gateway VM."
-      }
-    },
-    "gatewayVmSize": {
-      "type": "string",
-      "defaultValue": "Standard_D2s_v3",
-      "metadata": {
-        "description": "Gateway VM size."
-      }
-    },
-    "vmAdminUsername": {
-      "type": "string",
-      "defaultValue": "fabricadmin",
-      "metadata": {
-        "description": "Gateway VM administrator username."
-      }
-    },
-    "vmAdminPassword": {
-      "type": "securestring",
-      "defaultValue": "[format('Gw!{0}Aa9', uniqueString(subscription().subscriptionId, parameters('networkResourceGroupName'), 'vmpwd'))]",
-      "metadata": {
-        "description": "Gateway VM administrator password. Generated default so no input is required; reset in the portal to RDP and install the data gateway."
-      }
-    },
-    "clientIpAddress": {
-      "type": "string",
-      "defaultValue": "",
-      "metadata": {
-        "description": "Your public IP, allowed to RDP (3389) to the gateway VM. Empty = no inbound RDP rule (use Bastion / add later)."
-      }
     }
   },
   "variables": {
@@ -213,7 +162,9 @@
       "workload": "fabric-end-to-end-demo",
       "environment": "demo",
       "managedBy": "bicep"
-    }
+    },
+    "effectiveAdminObjectId": "[if(empty(parameters('aadAdminObjectId')), deployer().objectId, parameters('aadAdminObjectId'))]",
+    "effectiveAdminLogin": "[if(empty(parameters('aadAdminLogin')), deployer().userPrincipalName, parameters('aadAdminLogin'))]"
   },
   "resources": [
     {
@@ -229,103 +180,6 @@
       "name": "[parameters('networkResourceGroupName')]",
       "location": "[parameters('location')]",
       "tags": "[variables('tags')]"
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "seedIdentity",
-      "resourceGroup": "[parameters('resourceGroupName')]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "name": {
-            "value": "[parameters('seedIdentityName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "tags": {
-            "value": "[variables('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.41.2.15936",
-              "templateHash": "12257221358820822201"
-            }
-          },
-          "parameters": {
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the user-assigned managed identity."
-              }
-            },
-            "location": {
-              "type": "string",
-              "metadata": {
-                "description": "Azure region."
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Resource tags."
-              }
-            }
-          },
-          "resources": [
-            {
-              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
-              "apiVersion": "2023-01-31",
-              "name": "[parameters('name')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]"
-            }
-          ],
-          "outputs": {
-            "id": {
-              "type": "string",
-              "metadata": {
-                "description": "Resource id of the managed identity."
-              },
-              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name'))]"
-            },
-            "principalId": {
-              "type": "string",
-              "metadata": {
-                "description": "Principal (object) id - used as the SQL Entra admin sid."
-              },
-              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name')), '2023-01-31').principalId]"
-            },
-            "clientId": {
-              "type": "string",
-              "metadata": {
-                "description": "Client id of the managed identity."
-              },
-              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name')), '2023-01-31').clientId]"
-            },
-            "name": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the managed identity - used as the SQL Entra admin login."
-              },
-              "value": "[parameters('name')]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
-      ]
     },
     {
       "type": "Microsoft.Resources/deployments",
@@ -354,13 +208,13 @@
             "value": "[parameters('sqlAdminPassword')]"
           },
           "aadAdminObjectId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
+            "value": "[variables('effectiveAdminObjectId')]"
           },
           "aadAdminLogin": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+            "value": "[variables('effectiveAdminLogin')]"
           },
           "aadAdminPrincipalType": {
-            "value": "Application"
+            "value": "[parameters('aadAdminPrincipalType')]"
           },
           "tags": {
             "value": "[variables('tags')]"
@@ -539,7 +393,6 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
       ]
     },
@@ -711,13 +564,13 @@
             "value": "[parameters('sqlAdminPassword')]"
           },
           "aadAdminObjectId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
+            "value": "[variables('effectiveAdminObjectId')]"
           },
           "aadAdminLogin": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+            "value": "[variables('effectiveAdminLogin')]"
           },
           "aadAdminPrincipalType": {
-            "value": "Application"
+            "value": "[parameters('aadAdminPrincipalType')]"
           },
           "tags": {
             "value": "[variables('tags')]"
@@ -896,7 +749,6 @@
         }
       },
       "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
       ]
     },
@@ -923,8 +775,8 @@
           "privateEndpointSubnetPrefix": {
             "value": "[parameters('privateEndpointSubnetPrefix')]"
           },
-          "gatewaySubnetPrefix": {
-            "value": "[parameters('gatewaySubnetPrefix')]"
+          "fabricGatewaySubnetPrefix": {
+            "value": "[parameters('fabricGatewaySubnetPrefix')]"
           },
           "tags": {
             "value": "[variables('tags')]"
@@ -937,7 +789,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "475052692111584096"
+              "templateHash": "10418006164762675474"
             }
           },
           "parameters": {
@@ -967,11 +819,11 @@
                 "description": "Subnet for the SQL private endpoints."
               }
             },
-            "gatewaySubnetPrefix": {
+            "fabricGatewaySubnetPrefix": {
               "type": "string",
               "defaultValue": "10.20.2.0/24",
               "metadata": {
-                "description": "Subnet for the VNet data gateway VM."
+                "description": "Subnet delegated to Fabric for the managed virtual network data gateway."
               }
             },
             "tags": {
@@ -984,7 +836,7 @@
           },
           "variables": {
             "privateEndpointSubnetName": "snet-privatelink",
-            "gatewaySubnetName": "snet-gateway",
+            "fabricGatewaySubnetName": "snet-fabric-gateway",
             "sqlPrivateDnsZoneName": "[format('privatelink{0}', environment().suffixes.sqlServerHostname)]"
           },
           "resources": [
@@ -1009,9 +861,17 @@
                     }
                   },
                   {
-                    "name": "[variables('gatewaySubnetName')]",
+                    "name": "[variables('fabricGatewaySubnetName')]",
                     "properties": {
-                      "addressPrefix": "[parameters('gatewaySubnetPrefix')]"
+                      "addressPrefix": "[parameters('fabricGatewaySubnetPrefix')]",
+                      "delegations": [
+                        {
+                          "name": "Microsoft.PowerPlatform.vnetaccesslinks",
+                          "properties": {
+                            "serviceName": "Microsoft.PowerPlatform/vnetaccesslinks"
+                          }
+                        }
+                      ]
                     }
                   }
                 ]
@@ -1050,6 +910,13 @@
               },
               "value": "[resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName'))]"
             },
+            "vnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the spoke VNet."
+              },
+              "value": "[parameters('vnetName')]"
+            },
             "privateEndpointSubnetId": {
               "type": "string",
               "metadata": {
@@ -1057,12 +924,19 @@
               },
               "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), variables('privateEndpointSubnetName'))]"
             },
-            "gatewaySubnetId": {
+            "fabricGatewaySubnetId": {
               "type": "string",
               "metadata": {
-                "description": "Resource id of the gateway VM subnet."
+                "description": "Resource id of the Fabric-delegated gateway subnet."
               },
-              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), variables('gatewaySubnetName'))]"
+              "value": "[format('{0}/subnets/{1}', resourceId('Microsoft.Network/virtualNetworks', parameters('vnetName')), variables('fabricGatewaySubnetName'))]"
+            },
+            "fabricGatewaySubnetName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the Fabric-delegated gateway subnet (select this in the Fabric VNet data gateway wizard)."
+              },
+              "value": "[variables('fabricGatewaySubnetName')]"
             },
             "sqlPrivateDnsZoneId": {
               "type": "string",
@@ -1355,403 +1229,6 @@
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('networkResourceGroupName'))]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl')]"
       ]
-    },
-    {
-      "type": "Microsoft.Resources/deployments",
-      "apiVersion": "2025-04-01",
-      "name": "gatewayVm",
-      "resourceGroup": "[parameters('networkResourceGroupName')]",
-      "properties": {
-        "expressionEvaluationOptions": {
-          "scope": "inner"
-        },
-        "mode": "Incremental",
-        "parameters": {
-          "vmName": {
-            "value": "[parameters('gatewayVmName')]"
-          },
-          "location": {
-            "value": "[parameters('location')]"
-          },
-          "subnetId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'spokeNetwork'), '2025-04-01').outputs.gatewaySubnetId.value]"
-          },
-          "uamiId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.id.value]"
-          },
-          "uamiClientId": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.clientId.value]"
-          },
-          "adminUsername": {
-            "value": "[parameters('vmAdminUsername')]"
-          },
-          "adminPassword": {
-            "value": "[parameters('vmAdminPassword')]"
-          },
-          "vmSize": {
-            "value": "[parameters('gatewayVmSize')]"
-          },
-          "clientIpAddress": {
-            "value": "[parameters('clientIpAddress')]"
-          },
-          "seedData": {
-            "value": "[parameters('seedData')]"
-          },
-          "storageResourceGroupName": {
-            "value": "[parameters('resourceGroupName')]"
-          },
-          "storageAccountName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountName.value]"
-          },
-          "containerName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.containerName.value]"
-          },
-          "opsSqlServerFqdn": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps'), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
-          },
-          "opsDatabaseName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps'), '2025-04-01').outputs.databaseName.value]"
-          },
-          "etlSqlServerFqdn": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl'), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
-          },
-          "etlDatabaseName": {
-            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl'), '2025-04-01').outputs.databaseName.value]"
-          },
-          "grantObjectId": {
-            "value": "[parameters('aadAdminObjectId')]"
-          },
-          "grantLogin": {
-            "value": "[parameters('aadAdminLogin')]"
-          },
-          "seedSourceUrl": {
-            "value": "[parameters('seedSourceUrl')]"
-          },
-          "seedForceUpdateTag": {
-            "value": "[parameters('seedForceUpdateTag')]"
-          },
-          "tags": {
-            "value": "[variables('tags')]"
-          }
-        },
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "metadata": {
-            "_generator": {
-              "name": "bicep",
-              "version": "0.41.2.15936",
-              "templateHash": "18432408848558608618"
-            }
-          },
-          "parameters": {
-            "vmName": {
-              "type": "string",
-              "metadata": {
-                "description": "Name of the gateway VM."
-              }
-            },
-            "location": {
-              "type": "string",
-              "metadata": {
-                "description": "Azure region."
-              }
-            },
-            "subnetId": {
-              "type": "string",
-              "metadata": {
-                "description": "Resource id of the gateway subnet."
-              }
-            },
-            "uamiId": {
-              "type": "string",
-              "metadata": {
-                "description": "Resource id of the user-assigned managed identity (the SQL Entra admin)."
-              }
-            },
-            "uamiClientId": {
-              "type": "string",
-              "metadata": {
-                "description": "Client id of the user-assigned managed identity (for the seed login)."
-              }
-            },
-            "adminUsername": {
-              "type": "string",
-              "defaultValue": "fabricadmin",
-              "metadata": {
-                "description": "VM administrator username."
-              }
-            },
-            "adminPassword": {
-              "type": "securestring",
-              "metadata": {
-                "description": "VM administrator password. Generated default so no input is required; reset in the portal if you need to RDP."
-              }
-            },
-            "vmSize": {
-              "type": "string",
-              "defaultValue": "Standard_D2s_v3",
-              "metadata": {
-                "description": "VM size."
-              }
-            },
-            "clientIpAddress": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Public IP to allow RDP (3389) from. Empty = no inbound RDP rule (use Bastion / add later)."
-              }
-            },
-            "seedData": {
-              "type": "bool",
-              "defaultValue": true,
-              "metadata": {
-                "description": "Run the seed Custom Script Extension."
-              }
-            },
-            "storageResourceGroupName": {
-              "type": "string",
-              "metadata": {
-                "description": "Workload resource group that holds the seed storage account (for the account key)."
-              }
-            },
-            "storageAccountName": {
-              "type": "string",
-              "metadata": {
-                "description": "Storage account holding the Shortcut source files."
-              }
-            },
-            "containerName": {
-              "type": "string",
-              "metadata": {
-                "description": "Shortcut blob container."
-              }
-            },
-            "opsSqlServerFqdn": {
-              "type": "string",
-              "metadata": {
-                "description": "FQDN of the operational SQL server."
-              }
-            },
-            "opsDatabaseName": {
-              "type": "string",
-              "metadata": {
-                "description": "Operational database name."
-              }
-            },
-            "etlSqlServerFqdn": {
-              "type": "string",
-              "metadata": {
-                "description": "FQDN of the ETL SQL server."
-              }
-            },
-            "etlDatabaseName": {
-              "type": "string",
-              "metadata": {
-                "description": "ETL database name."
-              }
-            },
-            "grantObjectId": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Object id of the deploying user to grant db_owner. Empty to skip."
-              }
-            },
-            "grantLogin": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "UPN of the deploying user to grant db_owner. Empty to skip."
-              }
-            },
-            "seedSourceUrl": {
-              "type": "string",
-              "metadata": {
-                "description": "Base raw URL to download the seed files + bootstrap script from."
-              }
-            },
-            "seedForceUpdateTag": {
-              "type": "string",
-              "defaultValue": "",
-              "metadata": {
-                "description": "Token that forces the seed extension to re-run on each deployment."
-              }
-            },
-            "tags": {
-              "type": "object",
-              "defaultValue": {},
-              "metadata": {
-                "description": "Resource tags."
-              }
-            }
-          },
-          "variables": {
-            "hasClientIp": "[not(empty(parameters('clientIpAddress')))]"
-          },
-          "resources": [
-            {
-              "type": "Microsoft.Network/networkSecurityGroups",
-              "apiVersion": "2023-11-01",
-              "name": "[format('{0}-nsg', parameters('vmName'))]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "securityRules": "[if(variables('hasClientIp'), createArray(createObject('name', 'Allow-RDP-From-Client', 'properties', createObject('priority', 1000, 'direction', 'Inbound', 'access', 'Allow', 'protocol', 'Tcp', 'sourceAddressPrefix', parameters('clientIpAddress'), 'sourcePortRange', '*', 'destinationAddressPrefix', '*', 'destinationPortRange', '3389'))), createArray())]"
-              }
-            },
-            {
-              "type": "Microsoft.Network/publicIPAddresses",
-              "apiVersion": "2023-11-01",
-              "name": "[format('{0}-pip', parameters('vmName'))]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "sku": {
-                "name": "Standard"
-              },
-              "properties": {
-                "publicIPAllocationMethod": "Static"
-              }
-            },
-            {
-              "type": "Microsoft.Network/networkInterfaces",
-              "apiVersion": "2023-11-01",
-              "name": "[format('{0}-nic', parameters('vmName'))]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "networkSecurityGroup": {
-                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg', parameters('vmName')))]"
-                },
-                "ipConfigurations": [
-                  {
-                    "name": "ipconfig1",
-                    "properties": {
-                      "subnet": {
-                        "id": "[parameters('subnetId')]"
-                      },
-                      "privateIPAllocationMethod": "Dynamic",
-                      "publicIPAddress": {
-                        "id": "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip', parameters('vmName')))]"
-                      }
-                    }
-                  }
-                ]
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/networkSecurityGroups', format('{0}-nsg', parameters('vmName')))]",
-                "[resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip', parameters('vmName')))]"
-              ]
-            },
-            {
-              "type": "Microsoft.Compute/virtualMachines",
-              "apiVersion": "2023-09-01",
-              "name": "[parameters('vmName')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "identity": {
-                "type": "UserAssigned",
-                "userAssignedIdentities": {
-                  "[format('{0}', parameters('uamiId'))]": {}
-                }
-              },
-              "properties": {
-                "hardwareProfile": {
-                  "vmSize": "[parameters('vmSize')]"
-                },
-                "osProfile": {
-                  "computerName": "[take(parameters('vmName'), 15)]",
-                  "adminUsername": "[parameters('adminUsername')]",
-                  "adminPassword": "[parameters('adminPassword')]"
-                },
-                "storageProfile": {
-                  "imageReference": {
-                    "publisher": "MicrosoftWindowsServer",
-                    "offer": "WindowsServer",
-                    "sku": "2022-datacenter-azure-edition",
-                    "version": "latest"
-                  },
-                  "osDisk": {
-                    "createOption": "FromImage",
-                    "managedDisk": {
-                      "storageAccountType": "StandardSSD_LRS"
-                    }
-                  }
-                },
-                "networkProfile": {
-                  "networkInterfaces": [
-                    {
-                      "id": "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('vmName')))]"
-                    }
-                  ]
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('vmName')))]"
-              ]
-            },
-            {
-              "condition": "[parameters('seedData')]",
-              "type": "Microsoft.Compute/virtualMachines/extensions",
-              "apiVersion": "2023-09-01",
-              "name": "[format('{0}/{1}', parameters('vmName'), 'seed-demo-data')]",
-              "location": "[parameters('location')]",
-              "tags": "[parameters('tags')]",
-              "properties": {
-                "publisher": "Microsoft.Compute",
-                "type": "CustomScriptExtension",
-                "typeHandlerVersion": "1.10",
-                "autoUpgradeMinorVersion": true,
-                "forceUpdateTag": "[parameters('seedForceUpdateTag')]",
-                "settings": {
-                  "fileUris": [
-                    "[format('{0}/scripts/vm-seed.ps1', parameters('seedSourceUrl'))]"
-                  ]
-                },
-                "protectedSettings": {
-                  "commandToExecute": "[format('powershell -ExecutionPolicy Unrestricted -NoProfile -File vm-seed.ps1 -UamiClientId \"{0}\" -OpsFqdn \"{1}\" -OpsDb \"{2}\" -EtlFqdn \"{3}\" -EtlDb \"{4}\" -GrantObjectId \"{5}\" -GrantUpn \"{6}\" -StorageAccount \"{7}\" -StorageKey \"{8}\" -Container \"{9}\" -SeedBaseUrl \"{10}\"', parameters('uamiClientId'), parameters('opsSqlServerFqdn'), parameters('opsDatabaseName'), parameters('etlSqlServerFqdn'), parameters('etlDatabaseName'), parameters('grantObjectId'), parameters('grantLogin'), parameters('storageAccountName'), listKeys(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('storageResourceGroupName')), 'Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2023-05-01').keys[0].value, parameters('containerName'), parameters('seedSourceUrl'))]"
-                }
-              },
-              "dependsOn": [
-                "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
-              ]
-            }
-          ],
-          "outputs": {
-            "vmName": {
-              "type": "string",
-              "metadata": {
-                "description": "Gateway VM resource name."
-              },
-              "value": "[parameters('vmName')]"
-            },
-            "publicIpAddress": {
-              "type": "string",
-              "metadata": {
-                "description": "Public IP address of the gateway VM (for RDP / gateway install)."
-              },
-              "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', format('{0}-pip', parameters('vmName'))), '2023-11-01').ipAddress]"
-            },
-            "privateIpAddress": {
-              "type": "string",
-              "metadata": {
-                "description": "Private IP of the gateway VM NIC."
-              },
-              "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', format('{0}-nic', parameters('vmName'))), '2023-11-01').ipConfigurations[0].properties.privateIPAddress]"
-            }
-          }
-        }
-      },
-      "dependsOn": [
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'spokeNetwork')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'peSqlEtl')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'peSqlOps')]",
-        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('networkResourceGroupName'))]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps')]",
-        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage')]"
-      ]
     }
   ],
   "outputs": {
@@ -1799,33 +1276,21 @@
       "type": "string",
       "value": "[parameters('sqlAdminLogin')]"
     },
-    "seedIdentityName": {
+    "sqlEntraAdminLogin": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+      "value": "[variables('effectiveAdminLogin')]"
     },
-    "seedIdentityPrincipalId": {
+    "sqlEntraAdminObjectId": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
+      "value": "[variables('effectiveAdminObjectId')]"
     },
     "vnetName": {
       "type": "string",
-      "value": "[parameters('vnetName')]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'spokeNetwork'), '2025-04-01').outputs.vnetName.value]"
     },
-    "gatewayVmName": {
+    "fabricGatewaySubnetName": {
       "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'gatewayVm'), '2025-04-01').outputs.vmName.value]"
-    },
-    "gatewayVmPublicIp": {
-      "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'gatewayVm'), '2025-04-01').outputs.publicIpAddress.value]"
-    },
-    "gatewayVmPrivateIp": {
-      "type": "string",
-      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'gatewayVm'), '2025-04-01').outputs.privateIpAddress.value]"
-    },
-    "vmAdminUsername": {
-      "type": "string",
-      "value": "[parameters('vmAdminUsername')]"
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('networkResourceGroupName')), 'Microsoft.Resources/deployments', 'spokeNetwork'), '2025-04-01').outputs.fabricGatewaySubnetName.value]"
     }
   }
 }

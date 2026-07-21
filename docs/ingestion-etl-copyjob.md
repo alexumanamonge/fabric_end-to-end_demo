@@ -13,7 +13,8 @@ scheduled **batch ETL** that lands source tables into the Bronze Lakehouse.
 
 ## Prerequisites
 
-- `scripts\Deploy-Azure.ps1` completed (sources deployed + seeded).
+- `scripts\Deploy-Azure.ps1` completed (sources deployed; SQL seeded from Fabric per
+  [`networking-gateway.md`](networking-gateway.md)).
 - `etlSqlServerFqdn` / `etlDatabaseName` from `infra\deployment-outputs.json`.
 
 ## Option A — Copy Job (simplest, recommended)
@@ -21,10 +22,10 @@ scheduled **batch ETL** that lands source tables into the Bronze Lakehouse.
 1. In the workspace: **+ New item › Copy job**.
 2. **Source:** Azure SQL Database.
    - Server: `<etlSqlServerFqdn>`, Database: `sqldb-etl`
-   - **Data gateway:** select your VNet gateway (installed on the gateway VM) —
-     required because SQL is private-endpoint-only.
+   - **Data gateway:** select your **managed VNet data gateway** — required because
+     SQL is private-endpoint-only.
    - Auth: **Organizational account** (Entra ID) — the servers are Entra-only;
-     sign in with the account granted `db_owner`. (SQL/Basic auth is disabled.)
+     sign in with the SQL Entra admin account. (SQL/Basic auth is disabled.)
    - Select tables **`dbo.orders`** and **`dbo.support_tickets`**.
 3. **Destination:** Lakehouse **`LH_Bronze`** → **Tables**.
    - Map `orders → orders`, `support_tickets → support_tickets`.

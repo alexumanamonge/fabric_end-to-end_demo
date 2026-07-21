@@ -15,14 +15,16 @@ Fabric action is documented with a **MANUAL** callout.
 [![Visualize](https://raw.githubusercontent.com/Azure/azure-quickstart-templates/master/1-CONTRIBUTION-GUIDE/images/visualizebutton.svg?sanitize=true)](https://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2Falexumanamonge%2Ffabric_end-to-end_demo%2Fmain%2Finfra%2Fazuredeploy.json)
 
 Provisions **two resource groups** — a workload RG (both Azure SQL DBs + ADLS Gen2
-storage + a managed identity) and a **networking RG** (spoke VNet, SQL private
-endpoints, private DNS, and a "VNet data gateway" VM) — **and automatically seeds
-the sample data** from inside the VNet. Just pick a region and (optionally) the two
-resource-group names; every other name defaults but is customizable. **No password
-is required:** SQL uses **Microsoft Entra ID-only auth** and is **private-endpoint
-only** (public access disabled) to satisfy org policy. Fabric reaches the private
-SQL endpoints through an on-premises data gateway you install on the VM (one-time,
-manual). Fabric capacity/workspace are still created manually.
+storage) and a **networking RG** (spoke VNet, SQL private endpoints, private DNS,
+and a subnet **delegated to Fabric** for its managed virtual network data gateway).
+Just pick a region and (optionally) the two resource-group names; every other name
+defaults but is customizable. **No password is required:** SQL uses **Microsoft
+Entra ID-only auth** and is **private-endpoint only** (public access disabled) to
+satisfy org policy, and the **deploying user** is set as the SQL Entra admin. There
+is **no VM** — Fabric provisions its own **managed VNet data gateway** into the
+delegated subnet to reach the private SQL endpoints (one-time, manual), and you
+seed the databases from Fabric with your own account. Fabric capacity/workspace are
+still created manually.
 
 ---
 
@@ -34,9 +36,9 @@ manual). Fabric capacity/workspace are still created manually.
  workload RG                     network RG
  ───────────                     ──────────
  sqldb-ops (private) ─PE─▶ spoke VNet ─┐
- sqldb-etl (private) ─PE─▶ (privatelink)│  ┌ gateway VM (on-prem data gateway)
- ADLS Gen2 (public) ───────────────────┘  └──────────────┬───────────────────
-                                                          │ (Fabric → gateway → private SQL)
+ sqldb-etl (private) ─PE─▶ (privatelink)│  ┌ snet-fabric-gateway (delegated)
+ ADLS Gen2 (public) ───────────────────┘  └── Fabric managed VNet data gateway ──
+                                                          │ (Fabric → managed gateway → private SQL)
  sqldb-ops   ──Mirroring──────▶  LH_Bronze ─┐
  ADLS Gen2   ──Shortcut───────▶  (raw)       │  01  ┌─ LH_Silver ─┐ 02 ┌─ LH_Gold ─┐
  sqldb-etl   ──ETL/Copy Job──▶  LH_Bronze ─┘        │ (clean/     │    │ (report-  │
@@ -47,10 +49,12 @@ manual). Fabric capacity/workspace are still created manually.
 ```
 
 **Networking:** SQL is **Entra-only + private-endpoint-only** (public access
-disabled per org policy). A **spoke VNet** with SQL private endpoints and a **VNet
-data gateway VM** are deployed to a separate **networking resource group**
-(hub-spoke; hub + peering out of scope). Fabric connects to SQL **through the
-gateway**. Storage keeps its **public** endpoint. See
+disabled per org policy). A **spoke VNet** with SQL private endpoints and a subnet
+**delegated to Fabric** (`Microsoft.PowerPlatform/vnetaccesslinks`) are deployed to
+a separate **networking resource group** (hub-spoke; hub + peering out of scope).
+Fabric provisions its own **managed VNet data gateway** into the delegated subnet
+and connects to SQL **through it** — no VM to run or patch. Storage keeps its
+**public** endpoint. See
 [`docs/networking-gateway.md`](docs/networking-gateway.md).
 
 | Source (Azure) | Ingestion pattern | Data | Lands in Bronze as |
@@ -67,63 +71,62 @@ is documented in [`infra/README.md`](infra/README.md).
 ## Prerequisites
 
 - Azure CLI ≥ 2.86, Bicep ≥ 0.41 (`az bicep version`), Python 3.10+.
-- Only for a manual re-seed on the gateway VM: the PowerShell **SqlServer** module.
-  The one-click / scripted deploy needs none of this — seeding runs on the VM.
+- No PowerShell SQL module is needed: SQL is seeded later **from Fabric** through
+  the managed VNet gateway (see Step 3). The scripted deploy only uploads the blob
+  reference file (public storage) from your machine.
 - An Azure subscription (Contributor) and a **Microsoft Fabric capacity** you can create.
 - `az login` completed and the right subscription selected.
 
 > **Authentication + networking:** the Azure SQL servers are **Entra ID-only**
 > (SQL logins disabled) **and** have **public network access disabled** — both to
 > satisfy org policy. They are reached only via **private endpoints** in a spoke
-> VNet. A user-assigned managed identity is the SQL Entra admin; the seed runs on a
-> **VNet data gateway VM** inside the VNet and authenticates with an Entra token.
-> There is **no SQL password** anywhere. Fabric connects to SQL through the
-> on-premises data gateway you install on that VM — see
+> VNet. The **deploying user** is set as the SQL Entra admin (no SQL password
+> anywhere), so once Fabric's **managed VNet data gateway** is connected you can
+> seed the databases from Fabric with your own account. Fabric provisions the
+> managed gateway into a subnet this template delegates for it — there is **no VM**
+> to install or patch. See
 > [`docs/networking-gateway.md`](docs/networking-gateway.md).
 
 ---
 
 ## Quick start
 
-### Step 1 — Deploy & seed the Azure sources
+### Step 1 — Deploy the Azure sources
 
-**Option A — one-click portal deploy (deploys *and* seeds).** Click the
+**Option A — one-click portal deploy.** Click the
 [**Deploy to Azure**](#one-click-deploy-the-azure-sources) button above, pick a
 region, and (optionally) customize the two resource-group names / resource names.
 No password is needed. The deployment provisions everything (both RGs + spoke VNet
-+ private endpoints + gateway VM) **and the gateway VM seeds the data from inside
-the VNet** — no follow-up command needed. Then continue to Step 2.
++ private endpoints + the Fabric-delegated subnet) and sets **you** (the deployer)
+as the SQL Entra admin. The databases start **empty** — you seed them from Fabric
+in Step 3 (there is no in-VNet VM). Upload the blob reference file with
+`scripts\Seed-Data.ps1` (storage is public), then continue to Step 2.
 
-> The seed runs on the gateway VM (as the managed identity) and downloads the seed
-> files from this repo's public raw URL, so the repo must stay public (or set
-> `seedSourceUrl` to your own raw location). To provision without seeding, set
-> `seedData=false`. To be granted `db_owner` on the databases, set
-> `aadAdminObjectId` (your Entra objectId) and `aadAdminLogin` (your UPN).
-
-**Option B — fully scripted (deploy + seed in one command).**
+**Option B — fully scripted.**
 
 ```powershell
 .\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo `
   -NetworkResourceGroupName rg-fabric-e2e-network -Location eastus2
 ```
 
-The script deploys the Bicep, auto-detects your Entra objectId/UPN (granted
-`db_owner`) and public IP (allowed to RDP the gateway VM), and the gateway VM seeds
-the data with an Entra token. Outputs (server FQDNs, gateway VM IP, storage
-endpoint) are saved to `infra/deployment-outputs.json`.
-Details: [`infra/README.md`](infra/README.md).
+The script deploys the Bicep, sets you as the SQL Entra admin, and uploads the
+Shortcut reference file to the (public) storage account. Outputs (server FQDNs,
+VNet name, Fabric-delegated subnet name, storage endpoint) are saved to
+`infra/deployment-outputs.json`. Details: [`infra/README.md`](infra/README.md).
 
-### Step 2 — Install the VNet data gateway (MANUAL)
-
-RDP to the gateway VM and install + register the on-premises data gateway so Fabric
-can reach the private SQL endpoints. Follow
-[`docs/networking-gateway.md`](docs/networking-gateway.md).
-
-### Step 3 — Create the Fabric workspace (MANUAL, best practices)
+### Step 2 — Create the Fabric workspace (MANUAL, best practices)
 
 Follow [`docs/fabric-workspace-setup.md`](docs/fabric-workspace-setup.md) to create
 the capacity, domain, workspace, `LH_Bronze` / `LH_Silver` / `LH_Gold`, roles, and
 Git integration.
+
+### Step 3 — Connect the managed VNet data gateway & seed SQL (MANUAL)
+
+In the Fabric portal, create a **virtual network data gateway** on the delegated
+subnet (`snet-fabric-gateway` in `vnet-fabric-spoke`), create connections to the
+two private SQL servers with your organizational account, then **seed the databases
+from Fabric** by running the two SQL seed scripts through the gateway. Full steps:
+[`docs/networking-gateway.md`](docs/networking-gateway.md).
 
 ### Step 4 — Wire the three ingestion patterns (MANUAL)
 
@@ -133,8 +136,8 @@ Git integration.
 | Shortcut | [`docs/ingestion-shortcut.md`](docs/ingestion-shortcut.md) |
 | ETL / Copy Job | [`docs/ingestion-etl-copyjob.md`](docs/ingestion-etl-copyjob.md) |
 
-> Mirroring and Copy Job connections to SQL must select the **VNet data gateway**
-> (Step 2) because SQL has no public endpoint.
+> Mirroring and Copy Job connections to SQL must select the **managed VNet data
+> gateway** (Step 3) because SQL has no public endpoint.
 
 ### Step 5 — Run the medallion pipeline
 
@@ -196,9 +199,8 @@ workspace manually for a full reset.
 | Path | Purpose |
 |---|---|
 | `infra/` | Bicep IaC for the Azure sources + spoke networking (+ README, MI variant). |
-| `scripts/Deploy-Azure.ps1` | One-command deploy of both RGs + gateway-VM seed. |
-| `scripts/vm-seed.ps1` | Seed bootstrap run by the gateway VM (in-VNet, Entra token). |
-| `scripts/Seed-Data.ps1` | Manual re-seed helper (run on the gateway VM). |
+| `scripts/Deploy-Azure.ps1` | One-command deploy of both RGs + blob upload. |
+| `scripts/Seed-Data.ps1` | Uploads the Shortcut reference file to storage (public). |
 | `scripts/Teardown-Azure.ps1` | Delete both Azure resource groups. |
 | `scripts/generate_demo_data.py` | Deterministic data generator (SQL, blob, fallback CSV). |
 | `data/` | Generated seed data (`sql/`, `blob/`, `bronze/`). |

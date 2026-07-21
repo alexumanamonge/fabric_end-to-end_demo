@@ -4,10 +4,11 @@
 
 .DESCRIPTION
   Deletes BOTH resource groups created by Deploy-Azure.ps1: the workload RG (Azure
-  SQL + storage + identity) and the networking RG (spoke VNet, private endpoints,
-  gateway VM). Fabric items are NOT affected (delete the Fabric workspace manually
-  if you want a full reset). The networking RG is deleted first so the private
-  endpoints release their link to the SQL servers.
+  SQL + storage) and the networking RG (spoke VNet, private endpoints, Fabric-
+  delegated subnet). Fabric items are NOT affected - delete the Fabric workspace and
+  the managed virtual network data gateway manually if you want a full reset. The
+  networking RG is deleted first so the private endpoints release their link to the
+  SQL servers.
 
 .EXAMPLE
   .\scripts\Teardown-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo `

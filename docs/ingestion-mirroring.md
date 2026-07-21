@@ -12,14 +12,15 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 
 ## Prerequisites
 
-- `scripts\Deploy-Azure.ps1` completed (sources deployed + seeded).
+- `scripts\Deploy-Azure.ps1` completed (sources deployed; SQL seeded from Fabric per
+  [`networking-gateway.md`](networking-gateway.md)).
 - The `opsSqlServerFqdn` / `opsDatabaseName` from `infra\deployment-outputs.json`.
-- Your Entra ID account with `db_owner` on `sqldb-ops` (granted automatically by
-  the deployment when you pass `aadAdminObjectId`/`aadAdminLogin`). The servers are
-  **Entra ID-only** — there is no SQL login/password.
-- The **on-premises data gateway installed on the gateway VM** and online in
-  Fabric — the SQL servers are private-endpoint-only, so the connection must go
-  through it. See [`networking-gateway.md`](networking-gateway.md).
+- Your Entra ID account is the **SQL Entra admin** (set to the deploying user by the
+  deployment), so it has full rights on `sqldb-ops`. The servers are **Entra ID-only**
+  — there is no SQL login/password.
+- The **managed VNet data gateway created in Fabric** and online — the SQL servers
+  are private-endpoint-only, so the connection must go through it. See
+  [`networking-gateway.md`](networking-gateway.md).
 
 ## Steps (MANUAL — Fabric portal)
 
@@ -27,10 +28,10 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 2. **New connection:**
    - Server: `<opsSqlServerFqdn>` (e.g. `sql-ops-xxxxxxxx.database.windows.net`)
    - Database: `sqldb-ops`
-   - **Data gateway:** select your VNet gateway (the one installed on the gateway
-     VM) — required because SQL has no public endpoint.
+   - **Data gateway:** select your **managed VNet data gateway** — required because
+     SQL has no public endpoint.
    - Authentication: **Organizational account** (Entra ID) — sign in with the
-     account that was granted `db_owner`. (Basic/SQL auth is disabled.)
+     admin account. (Basic/SQL auth is disabled.)
 3. Select tables to mirror: **`dbo.customers`** and **`dbo.products`**.
 4. Name the item **`mirror_sqldb_ops`** and create it.
 5. Wait for initial snapshot; status shows **Running / Replicating**.

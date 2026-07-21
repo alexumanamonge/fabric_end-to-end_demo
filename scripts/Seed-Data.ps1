@@ -1,65 +1,41 @@
 <#
 .SYNOPSIS
-  Re-seeds the Azure source systems for the Fabric end-to-end demo using
-  Microsoft Entra authentication (no SQL password).
+  Uploads the Shortcut reference file(s) to the demo storage account.
 
 .DESCRIPTION
-  The deployment already seeds the databases automatically from the gateway VM
-  (scripts\vm-seed.ps1, run by its Custom Script Extension). Use THIS helper only
-  to re-run the seed by hand.
+  The storage account is on the PUBLIC network, so this runs fine from your
+  laptop - no VNet access is required. It uploads data\blob\reference\* (the
+  regions reference data the OneLake Shortcut points at) to the blob container.
 
-  IMPORTANT: the SQL servers are private-endpoint-only, so this script must run
-  from a host INSIDE the spoke VNet - i.e. RDP into the gateway VM and run it
-  there (or from another peered/VNet-connected machine). It will NOT work from a
-  laptop over the public internet.
+  NOTE ON SQL: the two Azure SQL databases are private-endpoint-only, so they are
+  NOT seeded from here. Seed them from Fabric AFTER you connect the managed virtual
+  network data gateway, using your organizational account (you are the SQL Entra
+  admin). See docs\networking-gateway.md, "Seed the databases from Fabric".
 
-  - Authenticates to Azure SQL with YOUR Entra access token (az account
-    get-access-token). You must already have db_owner on the databases - the
-    deployment grants this to the deploying user automatically.
-  - Runs the two SQL seed scripts (data\sql\ops_seed.sql, etl_seed.sql).
-  - Uploads the shortcut reference files (data\blob\reference\*) to Storage.
-
-  Requires the SqlServer PowerShell module (Invoke-Sqlcmd -AccessToken).
+.EXAMPLE
+  .\scripts\Seed-Data.ps1 -ResourceGroupName rg-fabric-e2e-demo `
+    -StorageAccountName stfabricxxxxx
 
 .NOTES
   Pass the values from the Bicep deployment outputs (infra\deployment-outputs.json).
+  Requires Azure CLI (az login done).
 #>
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)] [string] $ResourceGroupName,
-  [Parameter(Mandatory)] [string] $OpsServerFqdn,
-  [Parameter(Mandatory)] [string] $OpsDatabase,
-  [Parameter(Mandatory)] [string] $EtlServerFqdn,
-  [Parameter(Mandatory)] [string] $EtlDatabase,
   [Parameter(Mandatory)] [string] $StorageAccountName,
   [string] $ContainerName = 'reference'
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$sqlDir   = Join-Path $repoRoot 'data\sql'
 $blobDir  = Join-Path $repoRoot 'data\blob\reference'
 
-if (-not (Get-Command Invoke-Sqlcmd -ErrorAction SilentlyContinue)) {
-  throw "The SqlServer PowerShell module is required (Invoke-Sqlcmd -AccessToken). Install with: Install-Module SqlServer -Scope CurrentUser"
+if (-not (Test-Path $blobDir)) {
+  throw "Reference data folder not found: $blobDir. Run scripts\generate_demo_data.py first."
 }
 
-# Acquire an Entra access token for Azure SQL using the current az login.
-$token = az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv
-if (-not $token) { throw "Could not obtain an Entra token. Run 'az login' first." }
-
-function Invoke-SqlFile {
-  param([string] $ServerFqdn, [string] $Database, [string] $InputFile)
-  Write-Host "  -> $Database  ($([System.IO.Path]::GetFileName($InputFile)))" -ForegroundColor Cyan
-  Invoke-Sqlcmd -ServerInstance $ServerFqdn -Database $Database -AccessToken $token `
-    -InputFile $InputFile -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60
-}
-
-Write-Host "Seeding Azure SQL databases (Entra auth)..." -ForegroundColor Green
-Invoke-SqlFile -ServerFqdn $OpsServerFqdn -Database $OpsDatabase -InputFile (Join-Path $sqlDir 'ops_seed.sql')
-Invoke-SqlFile -ServerFqdn $EtlServerFqdn -Database $EtlDatabase -InputFile (Join-Path $sqlDir 'etl_seed.sql')
-
-Write-Host "Uploading shortcut reference files to storage..." -ForegroundColor Green
+Write-Host "Uploading Shortcut reference files to storage..." -ForegroundColor Green
 $key = az storage account keys list --account-name $StorageAccountName --resource-group $ResourceGroupName --query "[0].value" -o tsv
 if (-not $key) { throw "Could not retrieve storage account key for $StorageAccountName." }
 
@@ -70,6 +46,7 @@ az storage blob upload-batch `
   --source $blobDir `
   --overwrite true | Out-Null
 
-Write-Host "Seeding complete." -ForegroundColor Green
-Write-Host "  SQL  : $OpsDatabase (customers, products), $EtlDatabase (orders, support_tickets)"
+Write-Host "Upload complete." -ForegroundColor Green
 Write-Host "  Blob : $StorageAccountName/$ContainerName/regions/regions.csv"
+Write-Host "  SQL  : seed sqldb-ops (customers, products) and sqldb-etl (orders, support_tickets)"
+Write-Host "         from Fabric via the managed VNet gateway - see docs\networking-gateway.md."

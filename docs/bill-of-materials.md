@@ -32,8 +32,8 @@
 
 | Asset | Path |
 |---|---|
-| Bicep IaC | `infra/main.bicep`, `infra/modules/*` (identity, sqlServer, storage, network, privateEndpoint, gatewayVm) |
-| Deploy / seed / teardown | `scripts/Deploy-Azure.ps1`, `vm-seed.ps1`, `Seed-Data.ps1`, `Teardown-Azure.ps1` |
+| Bicep IaC | `infra/main.bicep`, `infra/modules/*` (sqlServer, storage, network, privateEndpoint) |
+| Deploy / seed / teardown | `scripts/Deploy-Azure.ps1`, `Seed-Data.ps1`, `Teardown-Azure.ps1` |
 | Networking + gateway guide | `docs/networking-gateway.md` |
 | Data generator | `scripts/generate_demo_data.py` |
 | SQL seed scripts | `data/sql/ops_seed.sql`, `data/sql/etl_seed.sql` |
