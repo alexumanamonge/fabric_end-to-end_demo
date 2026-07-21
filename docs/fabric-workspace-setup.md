@@ -69,6 +69,13 @@ and domain.
 
 ### Medallion layout — one workspace, three Lakehouses (recommended for the demo)
 
+> **Do NOT create the three Lakehouses by hand.** They ship in this repo as Fabric
+> items (`LH_Bronze.Lakehouse/`, `LH_Silver.Lakehouse/`, `LH_Gold.Lakehouse/`), so
+> **Git integration creates them for you** when you connect the workspace and run
+> **Update all** (Section 6). Pre-creating them causes duplicate items / sync
+> conflicts, and the notebooks + `sm_customer360_gold` resolve the Lakehouses by
+> name. Connect Git into an **empty** workspace and let the sync provision them.
+
 ```
 WS-Contoso-Customer360-Prod
 ├── LH_Bronze   (raw: exact copies from the 3 ingestion patterns, no transforms)
@@ -136,9 +143,12 @@ is covered in [`../fabric/governance/checklist.md`](../fabric/governance/checkli
 
 **MANUAL — Workspace settings › Git integration.**
 
-1. Connect the workspace to this GitHub repo, branch `main`, folder `/`.
-2. Let **Fabric generate** the item system files; commit Fabric-created items back
-   from the Source control pane. See
+1. Connect the **empty** workspace to this GitHub repo, branch `main`, folder `/`,
+   then run **Update all** — this creates `LH_Bronze` / `LH_Silver` / `LH_Gold`,
+   the notebooks, the semantic model, and the report from the repo. Do not
+   pre-create these items.
+2. Let **Fabric generate** any remaining item system files; commit Fabric-created
+   items back from the Source control pane. See
    [`fabric-git-integration-demo.md`](fabric-git-integration-demo.md).
 3. For multi-environment promotion, add a **Deployment Pipeline**
    (Dev → Test → Prod) and use deployment rules to swap data source bindings per
@@ -154,10 +164,10 @@ Delta tables.
 
 - [ ] Fabric capacity created, in-region, admins assigned
 - [ ] Domain `Contoso Analytics` created; workspace assigned
-- [ ] Workspace created, assigned to capacity + domain
-- [ ] `LH_Bronze`, `LH_Silver`, `LH_Gold` created
+- [ ] Workspace created (empty), assigned to capacity + domain
+- [ ] Git integration connected to `/` on `main`; **Update all** run
+- [ ] `LH_Bronze`, `LH_Silver`, `LH_Gold` created **by the Git sync** (not by hand)
 - [ ] Roles assigned per least privilege
-- [ ] Git integration connected to `/` on `main`
 - [ ] Ingestion wired: Mirroring, Shortcut, Copy Job (see `ingestion-*.md`)
 - [ ] Notebooks run; medallion tables present
 - [ ] Sensitivity labels applied; Gold model endorsed
