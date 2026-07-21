@@ -19,7 +19,7 @@
 1. Open **`LH_Bronze`** → **Files** → right-click → **New shortcut**.
 2. Choose **Azure Data Lake Storage Gen2**.
 3. **Connection settings:**
-   - URL: `<storageDfsEndpoint>` (e.g. `https://stfabdemoxxxxxx.dfs.core.windows.net/`)
+   - URL: `<storageDfsEndpoint>` (e.g. `https://stfabricxxxxxxxx.dfs.core.windows.net/`)
    - Authentication:
      - **Organizational account** (Entra ID) — requires **Storage Blob Data
        Reader** on the account for your user (recommended), **or**

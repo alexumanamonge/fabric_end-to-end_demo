@@ -8,18 +8,15 @@
   Fabric workspace manually if you want a full reset).
 
 .EXAMPLE
-  .\scripts\Teardown-Azure.ps1 -NamePrefix fabdemo
+  .\scripts\Teardown-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
-  [string] $NamePrefix = 'fabdemo',
-  [string] $ResourceGroupName,
+  [string] $ResourceGroupName = 'rg-fabric-e2e-demo',
   [switch] $NoWait
 )
 
 $ErrorActionPreference = 'Stop'
-
-if (-not $ResourceGroupName) { $ResourceGroupName = "rg-$NamePrefix-source" }
 
 $exists = az group exists --name $ResourceGroupName -o tsv
 if ($exists -ne 'true') {

@@ -6,8 +6,16 @@ using 'main.bicep'
 // or wire it to Key Vault with getSecret(). See infra/README.md.
 // -------------------------------------------------------------------------
 
-param namePrefix = 'fabdemo'
 param location = 'eastus2'
+
+// Name every resource however you like (defaults in main.bicep are collision-safe).
+param resourceGroupName = 'rg-fabric-e2e-demo'
+// param opsSqlServerName  = 'sql-contoso-ops'
+// param etlSqlServerName  = 'sql-contoso-etl'
+// param storageAccountName = 'stcontosoref01'
+// param opsDatabaseName   = 'sqldb-ops'
+// param etlDatabaseName   = 'sqldb-etl'
+// param containerName     = 'reference'
 
 // Set your Entra ID user objectId + UPN to become the SQL AAD admin (recommended).
 param aadAdminObjectId = ''
@@ -19,3 +27,4 @@ param clientIpAddress = ''
 // Password is intentionally NOT stored here. Pass it at deploy time, e.g.:
 //   $securePwd read from env, passed via -p sqlAdminPassword=...
 param sqlAdminPassword = readEnvironmentVariable('SQL_ADMIN_PASSWORD', '')
+

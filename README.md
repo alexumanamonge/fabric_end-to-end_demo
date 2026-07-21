@@ -76,7 +76,7 @@ to Step 2.
 
 ```powershell
 $env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'   # strong, not committed
-.\scripts\Deploy-Azure.ps1 -NamePrefix fabdemo -Location eastus2
+.\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 ```
 
 The script deploys the Bicep (with `seedData=false`) and seeds locally from your
@@ -144,7 +144,7 @@ and sensitivity labels.
 ### Step 7 — Tear down
 
 ```powershell
-.\scripts\Teardown-Azure.ps1 -NamePrefix fabdemo
+.\scripts\Teardown-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo
 ```
 
 Delete the Fabric workspace manually for a full reset.

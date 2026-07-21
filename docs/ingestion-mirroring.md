@@ -20,7 +20,7 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 
 1. In the demo workspace choose **+ New item › Mirrored Azure SQL Database**.
 2. **New connection:**
-   - Server: `<opsSqlServerFqdn>` (e.g. `sql-fabdemo-ops-xxxxxx.database.windows.net`)
+   - Server: `<opsSqlServerFqdn>` (e.g. `sql-ops-xxxxxxxx.database.windows.net`)
    - Database: `sqldb-ops`
    - Authentication: **Basic** with the SQL admin login/password
      (or **Organizational account** if using Entra ID admin).

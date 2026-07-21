@@ -5,19 +5,10 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "14911954030429473473"
+      "templateHash": "14687117396145164538"
     }
   },
   "parameters": {
-    "namePrefix": {
-      "type": "string",
-      "defaultValue": "fabdemo",
-      "minLength": 3,
-      "maxLength": 10,
-      "metadata": {
-        "description": "Short environment/prefix token used to name resources (lowercase, 3-10 chars)."
-      }
-    },
     "location": {
       "type": "string",
       "defaultValue": "eastus2",
@@ -27,23 +18,16 @@
     },
     "resourceGroupName": {
       "type": "string",
-      "defaultValue": "[format('rg-{0}-source', parameters('namePrefix'))]",
+      "defaultValue": "rg-fabric-e2e-demo",
       "metadata": {
-        "description": "Resource group name."
-      }
-    },
-    "uniqueSuffix": {
-      "type": "string",
-      "defaultValue": "[substring(uniqueString(subscription().subscriptionId, parameters('namePrefix')), 0, 6)]",
-      "metadata": {
-        "description": "Deterministic suffix to keep globally-unique names stable across redeploys."
+        "description": "Name of the resource group to create. Use any name allowed by Azure."
       }
     },
     "opsSqlServerName": {
       "type": "string",
-      "defaultValue": "[format('sql-{0}-ops-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "defaultValue": "[format('sql-ops-{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName')))]",
       "metadata": {
-        "description": "Name of the operational SQL logical server (Mirroring source). Must be globally unique."
+        "description": "Name of the operational SQL logical server (Mirroring source). Globally unique; lowercase letters, numbers, and hyphens. Default is collision-safe - replace with your own name if you prefer."
       }
     },
     "opsDatabaseName": {
@@ -55,9 +39,9 @@
     },
     "etlSqlServerName": {
       "type": "string",
-      "defaultValue": "[format('sql-{0}-etl-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "defaultValue": "[format('sql-etl-{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName')))]",
       "metadata": {
-        "description": "Name of the ETL SQL logical server (Copy Job source). Must be globally unique."
+        "description": "Name of the ETL SQL logical server (Copy Job source). Globally unique; lowercase letters, numbers, and hyphens. Default is collision-safe - replace with your own name if you prefer."
       }
     },
     "etlDatabaseName": {
@@ -69,11 +53,11 @@
     },
     "storageAccountName": {
       "type": "string",
-      "defaultValue": "[format('st{0}{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "defaultValue": "[format('stfabric{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName')))]",
       "minLength": 3,
       "maxLength": 24,
       "metadata": {
-        "description": "Storage account name (Shortcut source). Must be globally unique, 3-24 lowercase alphanumerics."
+        "description": "Storage account name (Shortcut source). Globally unique, 3-24 lowercase alphanumerics. Default is collision-safe - replace with your own name if you prefer."
       }
     },
     "containerName": {

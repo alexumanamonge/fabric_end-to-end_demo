@@ -11,7 +11,7 @@
 
 .EXAMPLE
   $env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'
-  .\scripts\Deploy-Azure.ps1 -NamePrefix fabdemo -Location eastus2
+  .\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 
 .NOTES
   Prerequisites: Azure CLI (az login done), Bicep, and either the SqlServer
@@ -19,7 +19,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string] $NamePrefix = 'fabdemo',
+  [string] $ResourceGroupName = 'rg-fabric-e2e-demo',
   [string] $Location = 'eastus2',
   [string] $SqlAdminLogin = 'fabricadmin',
   [string] $SqlAdminPassword = $env:SQL_ADMIN_PASSWORD,
@@ -59,7 +59,7 @@ $deployJson = az deployment sub create `
   --name $deploymentName `
   --location $Location `
   --template-file (Join-Path $repoRoot 'infra\main.bicep') `
-  --parameters namePrefix=$NamePrefix location=$Location `
+  --parameters resourceGroupName=$ResourceGroupName location=$Location `
                sqlAdminLogin=$SqlAdminLogin `
                sqlAdminPassword=$SqlAdminPassword `
                aadAdminObjectId=$objectId `

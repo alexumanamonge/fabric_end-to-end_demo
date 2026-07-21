@@ -13,36 +13,28 @@
 
 targetScope = 'subscription'
 
-@description('Short environment/prefix token used to name resources (lowercase, 3-10 chars).')
-@minLength(3)
-@maxLength(10)
-param namePrefix string = 'fabdemo'
-
 @description('Azure region for all resources.')
 param location string = 'eastus2'
 
-@description('Resource group name.')
-param resourceGroupName string = 'rg-${namePrefix}-source'
+@description('Name of the resource group to create. Use any name allowed by Azure.')
+param resourceGroupName string = 'rg-fabric-e2e-demo'
 
-@description('Deterministic suffix to keep globally-unique names stable across redeploys.')
-param uniqueSuffix string = substring(uniqueString(subscription().subscriptionId, namePrefix), 0, 6)
-
-@description('Name of the operational SQL logical server (Mirroring source). Must be globally unique.')
-param opsSqlServerName string = 'sql-${namePrefix}-ops-${uniqueSuffix}'
+@description('Name of the operational SQL logical server (Mirroring source). Globally unique; lowercase letters, numbers, and hyphens. Default is collision-safe - replace with your own name if you prefer.')
+param opsSqlServerName string = 'sql-ops-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
 
 @description('Operational database name (Mirroring source).')
 param opsDatabaseName string = 'sqldb-ops'
 
-@description('Name of the ETL SQL logical server (Copy Job source). Must be globally unique.')
-param etlSqlServerName string = 'sql-${namePrefix}-etl-${uniqueSuffix}'
+@description('Name of the ETL SQL logical server (Copy Job source). Globally unique; lowercase letters, numbers, and hyphens. Default is collision-safe - replace with your own name if you prefer.')
+param etlSqlServerName string = 'sql-etl-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
 
 @description('ETL database name (Copy Job source).')
 param etlDatabaseName string = 'sqldb-etl'
 
-@description('Storage account name (Shortcut source). Must be globally unique, 3-24 lowercase alphanumerics.')
+@description('Storage account name (Shortcut source). Globally unique, 3-24 lowercase alphanumerics. Default is collision-safe - replace with your own name if you prefer.')
 @minLength(3)
 @maxLength(24)
-param storageAccountName string = 'st${namePrefix}${uniqueSuffix}'
+param storageAccountName string = 'stfabric${uniqueString(subscription().subscriptionId, resourceGroupName)}'
 
 @description('Blob container that holds the Shortcut reference files.')
 param containerName string = 'reference'

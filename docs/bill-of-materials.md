@@ -4,7 +4,7 @@
 
 | Resource | Suggested name | Role | Feeds |
 |---|---|---|---|
-| Resource group | `rg-fabdemo-source` | Container for all sources | — |
+| Resource group | `rg-fabric-e2e-demo` | Container for all sources | — |
 | Azure SQL DB | `sqldb-ops` | Operational master data | **Mirroring** |
 | Storage (ADLS Gen2) | `st<prefix><suffix>` | Reference file landing | **Shortcut** |
 | Azure SQL DB | `sqldb-etl` | Transactional data (SQL MI stand-in) | **ETL / Copy Job** |

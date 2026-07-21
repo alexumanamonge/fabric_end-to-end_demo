@@ -12,7 +12,7 @@ manually by you (see [`../docs/fabric-workspace-setup.md`](../docs/fabric-worksp
 | Storage account (ADLS Gen2) | `storage` | Reference file landing zone | **Shortcut** → regions |
 | Azure SQL DB `sqldb-etl` | `sqlEtl` | Transactional system of record | **ETL / Copy Job** → orders, support_tickets |
 
-All resources land in a single resource group (`rg-<namePrefix>-source` by default).
+All resources land in a single resource group (`rg-fabric-e2e-demo` by default; rename it and any resource freely).
 
 ## One-click deploy (portal)
 
@@ -45,10 +45,10 @@ password; all other parameters have sensible defaults.
 
 | Parameter | Default | Purpose |
 |---|---|---|
-| `resourceGroupName` | `rg-<namePrefix>-source` | Resource group to create. |
-| `opsSqlServerName` / `opsDatabaseName` | `sql-<prefix>-ops-<suffix>` / `sqldb-ops` | Mirroring source. |
-| `etlSqlServerName` / `etlDatabaseName` | `sql-<prefix>-etl-<suffix>` / `sqldb-etl` | Copy Job source. |
-| `storageAccountName` / `containerName` | `st<prefix><suffix>` / `reference` | Shortcut source. |
+| `resourceGroupName` | `rg-fabric-e2e-demo` | Resource group to create (any valid name). |
+| `opsSqlServerName` / `opsDatabaseName` | unique `sql-ops-…` / `sqldb-ops` | Mirroring source (override with any name). |
+| `etlSqlServerName` / `etlDatabaseName` | unique `sql-etl-…` / `sqldb-etl` | Copy Job source (override with any name). |
+| `storageAccountName` / `containerName` | unique `stfabric…` / `reference` | Shortcut source (override with any name). |
 | `sqlAdminLogin` / `sqlAdminPassword` | `fabricadmin` / *(required)* | SQL admin. |
 | `seedData` | `true` | Run the automated seed deployment script. |
 | `seedSourceUrl` | repo `main` raw URL | Where the seed step downloads files from. |
@@ -75,7 +75,7 @@ password; all other parameters have sensible defaults.
 Use the wrapper script (recommended — it also seeds data):
 
 ```powershell
-..\scripts\Deploy-Azure.ps1 -NamePrefix fabdemo -Location eastus2
+..\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 ```
 
 Or deploy the Bicep directly:
@@ -116,9 +116,9 @@ az deployment sub show --name fabric-demo-source --query properties.outputs
 ## Teardown
 
 ```powershell
-..\scripts\Teardown-Azure.ps1 -NamePrefix fabdemo
+..\scripts\Teardown-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo
 # or
-az group delete --name rg-fabdemo-source --yes --no-wait
+az group delete --name rg-fabric-e2e-demo --yes --no-wait
 ```
 
 ## Variant: real Azure SQL Managed Instance
