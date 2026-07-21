@@ -15,18 +15,26 @@ param databaseName string
 @description('Azure region.')
 param location string
 
-@description('SQL administrator login name.')
+@description('SQL administrator login. Local auth is DISABLED (Entra-only) but a login is kept for API compatibility.')
 param administratorLogin string
 
-@description('SQL administrator password.')
+@description('SQL administrator password. Never used - local auth is disabled - but kept for API compatibility.')
 @secure()
 param administratorLoginPassword string
 
-@description('Entra ID (Azure AD) admin object id. Leave empty to skip AAD admin.')
-param aadAdminObjectId string = ''
+@description('Microsoft Entra admin object id (sid) for the server. Required (Entra-only auth).')
+param aadAdminObjectId string
 
-@description('Entra ID (Azure AD) admin display name / login.')
-param aadAdminLogin string = ''
+@description('Microsoft Entra admin login / display name.')
+param aadAdminLogin string
+
+@description('Entra principal type of the admin: User, Group, or Application (managed identity = Application).')
+@allowed([
+  'User'
+  'Group'
+  'Application'
+])
+param aadAdminPrincipalType string = 'Application'
 
 @description('SKU name for the database (e.g. GP_S_Gen5_2 serverless, or S0).')
 param databaseSkuName string = 'GP_S_Gen5_2'
@@ -40,7 +48,6 @@ param clientIpAddress string = ''
 @description('Resource tags.')
 param tags object = {}
 
-var hasAadAdmin = !empty(aadAdminObjectId)
 var hasClientIp = !empty(clientIpAddress)
 
 resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
@@ -57,15 +64,15 @@ resource sqlServer 'Microsoft.Sql/servers@2023-08-01-preview' = {
     version: '12.0'
     minimalTlsVersion: '1.2'
     publicNetworkAccess: 'Enabled'
-    // Keep SQL auth enabled so the seeding script and Fabric connections can use it.
-    administrators: hasAadAdmin ? {
+    // Microsoft Entra-only authentication (SQL auth disabled) to satisfy org policy.
+    administrators: {
       administratorType: 'ActiveDirectory'
-      principalType: 'User'
+      principalType: aadAdminPrincipalType
       login: aadAdminLogin
       sid: aadAdminObjectId
       tenantId: subscription().tenantId
-      azureADOnlyAuthentication: false
-    } : null
+      azureADOnlyAuthentication: true
+    }
   }
 }
 

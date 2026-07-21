@@ -39,6 +39,9 @@ param storageAccountName string = 'stfabric${uniqueString(subscription().subscri
 @description('Blob container that holds the Shortcut reference files.')
 param containerName string = 'reference'
 
+@description('Name of the user-assigned managed identity that acts as the SQL Entra admin and runs the seed script. Default is collision-safe.')
+param seedIdentityName string = 'id-fabric-seed-${uniqueString(subscription().subscriptionId, resourceGroupName)}'
+
 @description('Automatically seed the SQL databases and upload the Shortcut file as part of the deployment (runs a deployment script). Set false to seed later with scripts/Seed-Data.ps1.')
 param seedData bool = true
 
@@ -48,17 +51,17 @@ param seedSourceUrl string = 'https://raw.githubusercontent.com/alexumanamonge/f
 @description('Unique token that forces the seed deployment script to re-run on each deployment.')
 param seedForceUpdateTag string = utcNow()
 
-@description('SQL administrator login.')
+@description('SQL administrator login. Local auth is DISABLED (Entra-only); kept only for ARM API compatibility.')
 param sqlAdminLogin string = 'fabricadmin'
 
-@description('SQL administrator password. Provide via secure parameter / Key Vault, never commit.')
+@description('SQL administrator password. Never used (Entra-only auth); has a generated default so no input is required. Kept for ARM API compatibility.')
 @secure()
-param sqlAdminPassword string
+param sqlAdminPassword string = 'P${uniqueString(subscription().subscriptionId, resourceGroupName, 'sqlpwd')}q!7Z'
 
-@description('Entra ID admin object id (your user objectId). Empty to skip AAD admin.')
+@description('Object id of the deploying user (your Entra objectId) to grant db_owner on both databases. Empty to skip the grant.')
 param aadAdminObjectId string = ''
 
-@description('Entra ID admin login / display name (your UPN).')
+@description('UPN / login of the deploying user, used for the db_owner grant. Empty to skip the grant.')
 param aadAdminLogin string = ''
 
 @description('Client public IP to allow through SQL firewall for seeding. Empty to skip.')
@@ -76,6 +79,20 @@ resource rg 'Microsoft.Resources/resourceGroups@2023-07-01' = {
   tags: tags
 }
 
+// --- User-assigned managed identity -----------------------------------------
+// Acts as the single Entra admin on both SQL servers (Entra-only auth) AND as
+// the runtime identity of the seed deployment script, so seeding needs no
+// SQL password - it authenticates with an Entra access token.
+module identity 'modules/identity.bicep' = {
+  scope: rg
+  name: 'seedIdentity'
+  params: {
+    name: seedIdentityName
+    location: location
+    tags: tags
+  }
+}
+
 // --- Source 1: operational DB for mirroring ---------------------------------
 module sqlOps 'modules/sqlServer.bicep' = {
   scope: rg
@@ -86,8 +103,9 @@ module sqlOps 'modules/sqlServer.bicep' = {
     location: location
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
-    aadAdminObjectId: aadAdminObjectId
-    aadAdminLogin: aadAdminLogin
+    aadAdminObjectId: identity.outputs.principalId
+    aadAdminLogin: identity.outputs.name
+    aadAdminPrincipalType: 'Application'
     clientIpAddress: clientIpAddress
     tags: tags
   }
@@ -115,8 +133,9 @@ module sqlEtl 'modules/sqlServer.bicep' = {
     location: location
     administratorLogin: sqlAdminLogin
     administratorLoginPassword: sqlAdminPassword
-    aadAdminObjectId: aadAdminObjectId
-    aadAdminLogin: aadAdminLogin
+    aadAdminObjectId: identity.outputs.principalId
+    aadAdminLogin: identity.outputs.name
+    aadAdminPrincipalType: 'Application'
     clientIpAddress: clientIpAddress
     tags: tags
   }
@@ -131,12 +150,13 @@ module seed 'modules/seed.bicep' = if (seedData) {
   name: 'seedDemoData'
   params: {
     location: location
+    seedIdentityId: identity.outputs.id
     opsSqlServerFqdn: sqlOps.outputs.fullyQualifiedDomainName
     opsDatabaseName: sqlOps.outputs.databaseName
     etlSqlServerFqdn: sqlEtl.outputs.fullyQualifiedDomainName
     etlDatabaseName: sqlEtl.outputs.databaseName
-    sqlAdminLogin: sqlAdminLogin
-    sqlAdminPassword: sqlAdminPassword
+    grantObjectId: aadAdminObjectId
+    grantLogin: aadAdminLogin
     storageAccountName: storage.outputs.storageAccountName
     containerName: storage.outputs.containerName
     seedSourceUrl: seedSourceUrl
@@ -160,3 +180,6 @@ output storageDfsEndpoint string = storage.outputs.dfsEndpoint
 output storageContainerName string = storage.outputs.containerName
 
 output sqlAdminLogin string = sqlAdminLogin
+
+output seedIdentityName string = identity.outputs.name
+output seedIdentityPrincipalId string = identity.outputs.principalId

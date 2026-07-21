@@ -1,18 +1,23 @@
 <#
 .SYNOPSIS
-  Seeds the Azure source systems for the Fabric end-to-end demo.
+  Re-seeds the Azure source systems for the Fabric end-to-end demo using
+  Microsoft Entra authentication (no SQL password).
 
 .DESCRIPTION
-  - Runs the two SQL seed scripts (data\sql\ops_seed.sql, etl_seed.sql) against the
-    two Azure SQL databases.
-  - Uploads the shortcut reference files (data\blob\reference\*) to the Storage account.
+  The one-click / Deploy-Azure.ps1 deployment already seeds the databases via an
+  in-template deployment script. Use THIS helper only to re-run the seed locally
+  (e.g. after regenerating data), or if you deployed with -SkipSeed / seedData=false.
 
-  SQL execution uses Invoke-Sqlcmd (SqlServer module) when available, otherwise
-  falls back to sqlcmd.exe. Blob upload uses the Azure CLI with the account key.
+  - Authenticates to Azure SQL with YOUR Entra access token (az account
+    get-access-token). You must already have db_owner on the databases - the
+    deployment grants this to the deploying user automatically.
+  - Runs the two SQL seed scripts (data\sql\ops_seed.sql, etl_seed.sql).
+  - Uploads the shortcut reference files (data\blob\reference\*) to Storage.
+
+  Requires the SqlServer PowerShell module (Invoke-Sqlcmd -AccessToken).
 
 .NOTES
-  Run Deploy-Azure.ps1 first (it calls this script automatically), or run this
-  standalone by passing the values from the Bicep deployment outputs.
+  Pass the values from the Bicep deployment outputs (infra\deployment-outputs.json).
 #>
 [CmdletBinding()]
 param(
@@ -21,8 +26,6 @@ param(
   [Parameter(Mandatory)] [string] $OpsDatabase,
   [Parameter(Mandatory)] [string] $EtlServerFqdn,
   [Parameter(Mandatory)] [string] $EtlDatabase,
-  [Parameter(Mandatory)] [string] $SqlAdminLogin,
-  [Parameter(Mandatory)] [string] $SqlAdminPassword,
   [Parameter(Mandatory)] [string] $StorageAccountName,
   [string] $ContainerName = 'reference'
 )
@@ -32,27 +35,22 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $sqlDir   = Join-Path $repoRoot 'data\sql'
 $blobDir  = Join-Path $repoRoot 'data\blob\reference'
 
-function Invoke-SqlFile {
-  param([string] $ServerFqdn, [string] $Database, [string] $InputFile)
-
-  Write-Host "  -> $Database  ($([System.IO.Path]::GetFileName($InputFile)))" -ForegroundColor Cyan
-
-  if (Get-Command Invoke-Sqlcmd -ErrorAction SilentlyContinue) {
-    Invoke-Sqlcmd -ServerInstance $ServerFqdn -Database $Database `
-      -Username $SqlAdminLogin -Password $SqlAdminPassword `
-      -InputFile $InputFile -TrustServerCertificate -QueryTimeout 300 -ConnectionTimeout 60
-  }
-  elseif (Get-Command sqlcmd -ErrorAction SilentlyContinue) {
-    & sqlcmd -S $ServerFqdn -d $Database -U $SqlAdminLogin -P $SqlAdminPassword `
-      -i $InputFile -b -l 60
-    if ($LASTEXITCODE -ne 0) { throw "sqlcmd failed for $Database (exit $LASTEXITCODE)" }
-  }
-  else {
-    throw "Neither Invoke-Sqlcmd (SqlServer module) nor sqlcmd.exe is available. Install one to seed SQL. See infra\README.md."
-  }
+if (-not (Get-Command Invoke-Sqlcmd -ErrorAction SilentlyContinue)) {
+  throw "The SqlServer PowerShell module is required (Invoke-Sqlcmd -AccessToken). Install with: Install-Module SqlServer -Scope CurrentUser"
 }
 
-Write-Host "Seeding Azure SQL databases..." -ForegroundColor Green
+# Acquire an Entra access token for Azure SQL using the current az login.
+$token = az account get-access-token --resource https://database.windows.net/ --query accessToken -o tsv
+if (-not $token) { throw "Could not obtain an Entra token. Run 'az login' first." }
+
+function Invoke-SqlFile {
+  param([string] $ServerFqdn, [string] $Database, [string] $InputFile)
+  Write-Host "  -> $Database  ($([System.IO.Path]::GetFileName($InputFile)))" -ForegroundColor Cyan
+  Invoke-Sqlcmd -ServerInstance $ServerFqdn -Database $Database -AccessToken $token `
+    -InputFile $InputFile -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60
+}
+
+Write-Host "Seeding Azure SQL databases (Entra auth)..." -ForegroundColor Green
 Invoke-SqlFile -ServerFqdn $OpsServerFqdn -Database $OpsDatabase -InputFile (Join-Path $sqlDir 'ops_seed.sql')
 Invoke-SqlFile -ServerFqdn $EtlServerFqdn -Database $EtlDatabase -InputFile (Join-Path $sqlDir 'etl_seed.sql')
 

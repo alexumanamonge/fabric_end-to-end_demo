@@ -16,9 +16,11 @@ Fabric action is documented with a **MANUAL** callout.
 
 Provisions the resource group + both Azure SQL DBs + ADLS Gen2 storage in the
 portal, **and automatically seeds the sample data** (a deployment script loads the
-SQL tables and uploads the Shortcut file). Just pick a region and set the SQL
-admin password — all resource names default but are fully customizable
-(resource group, SQL servers/databases, storage account). Fabric
+SQL tables and uploads the Shortcut file). Just pick a region — every resource
+name defaults but is fully customizable (resource group, SQL servers/databases,
+storage account). **No password is required:** the SQL servers use **Microsoft
+Entra ID-only authentication**, so there is nothing to set. Optionally provide your
+Entra `objectId` + UPN to be granted `db_owner` on the databases. Fabric
 capacity/workspace are still created manually.
 
 ---
@@ -51,9 +53,17 @@ is documented in [`infra/README.md`](infra/README.md).
 ## Prerequisites
 
 - Azure CLI ≥ 2.86, Bicep ≥ 0.41 (`az bicep version`), Python 3.10+.
-- Either the PowerShell **SqlServer** module or **sqlcmd.exe** (for SQL seeding).
+- For the fully scripted / local re-seed path: the PowerShell **SqlServer** module
+  (`Install-Module SqlServer`). The one-click deploy needs none of this — it seeds
+  in Azure with an Entra token.
 - An Azure subscription (Contributor) and a **Microsoft Fabric capacity** you can create.
 - `az login` completed and the right subscription selected.
+
+> **Authentication:** the Azure SQL servers are created with **Microsoft Entra
+> ID-only authentication** (SQL logins disabled) to satisfy the org policy that
+> requires it. A user-assigned managed identity is created automatically and made
+> the SQL Entra admin; the seed step authenticates as that identity with an Entra
+> access token. There is **no SQL password** anywhere in this repo.
 
 ---
 
@@ -63,25 +73,27 @@ is documented in [`infra/README.md`](infra/README.md).
 
 **Option A — one-click portal deploy (deploys *and* seeds).** Click the
 [**Deploy to Azure**](#one-click-deploy-the-azure-sources) button above, pick a
-region, set the SQL admin password, and (optionally) customize the resource group
-and resource names. The deployment provisions everything **and runs the automated
-seed** (SQL tables + Shortcut file) — no follow-up command needed. Then continue
-to Step 2.
+region, and (optionally) customize the resource group and resource names. No
+password is needed (Entra-only auth). The deployment provisions everything **and
+runs the automated seed** (SQL tables + Shortcut file) — no follow-up command
+needed. Then continue to Step 2.
 
-> The automated seed runs a deployment script that downloads the seed files from
-> this repo's public raw URL, so the repo must stay public (or set `seedSourceUrl`
-> to your own raw location). To provision without seeding, set `seedData=false`.
+> The automated seed runs a deployment script (as the managed identity) that
+> downloads the seed files from this repo's public raw URL, so the repo must stay
+> public (or set `seedSourceUrl` to your own raw location). To provision without
+> seeding, set `seedData=false`. To be granted `db_owner` on the databases, set
+> `aadAdminObjectId` (your Entra objectId) and `aadAdminLogin` (your UPN).
 
-**Option B — fully scripted (deploy + local seed in one command).**
+**Option B — fully scripted (deploy + seed in one command).**
 
 ```powershell
-$env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'   # strong, not committed
 .\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 ```
 
-The script deploys the Bicep (with `seedData=false`) and seeds locally from your
-machine (also adding your client IP to the SQL firewall). Outputs (server FQDNs,
-storage endpoint) are saved to `infra/deployment-outputs.json`.
+The script deploys the Bicep, auto-detects your Entra objectId/UPN (granted
+`db_owner`) and public IP (added to the SQL firewall), and the in-template seed
+loads the data using an Entra token. Outputs (server FQDNs, storage endpoint) are
+saved to `infra/deployment-outputs.json`.
 Details: [`infra/README.md`](infra/README.md).
 
 ### Step 2 — Create the Fabric workspace (MANUAL, best practices)

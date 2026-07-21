@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "14687117396145164538"
+      "templateHash": "6796457761944064456"
     }
   },
   "parameters": {
@@ -67,6 +67,13 @@
         "description": "Blob container that holds the Shortcut reference files."
       }
     },
+    "seedIdentityName": {
+      "type": "string",
+      "defaultValue": "[format('id-fabric-seed-{0}', uniqueString(subscription().subscriptionId, parameters('resourceGroupName')))]",
+      "metadata": {
+        "description": "Name of the user-assigned managed identity that acts as the SQL Entra admin and runs the seed script. Default is collision-safe."
+      }
+    },
     "seedData": {
       "type": "bool",
       "defaultValue": true,
@@ -92,27 +99,28 @@
       "type": "string",
       "defaultValue": "fabricadmin",
       "metadata": {
-        "description": "SQL administrator login."
+        "description": "SQL administrator login. Local auth is DISABLED (Entra-only); kept only for ARM API compatibility."
       }
     },
     "sqlAdminPassword": {
       "type": "securestring",
+      "defaultValue": "[format('P{0}q!7Z', uniqueString(subscription().subscriptionId, parameters('resourceGroupName'), 'sqlpwd'))]",
       "metadata": {
-        "description": "SQL administrator password. Provide via secure parameter / Key Vault, never commit."
+        "description": "SQL administrator password. Never used (Entra-only auth); has a generated default so no input is required. Kept for ARM API compatibility."
       }
     },
     "aadAdminObjectId": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Entra ID admin object id (your user objectId). Empty to skip AAD admin."
+        "description": "Object id of the deploying user (your Entra objectId) to grant db_owner on both databases. Empty to skip the grant."
       }
     },
     "aadAdminLogin": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
-        "description": "Entra ID admin login / display name (your UPN)."
+        "description": "UPN / login of the deploying user, used for the db_owner grant. Empty to skip the grant."
       }
     },
     "clientIpAddress": {
@@ -141,6 +149,103 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "seedIdentity",
+      "resourceGroup": "[parameters('resourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[parameters('seedIdentityName')]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "12257221358820822201"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the user-assigned managed identity."
+              }
+            },
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {},
+              "metadata": {
+                "description": "Resource tags."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+              "apiVersion": "2023-01-31",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]"
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource id of the managed identity."
+              },
+              "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name'))]"
+            },
+            "principalId": {
+              "type": "string",
+              "metadata": {
+                "description": "Principal (object) id - used as the SQL Entra admin sid."
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name')), '2023-01-31').principalId]"
+            },
+            "clientId": {
+              "type": "string",
+              "metadata": {
+                "description": "Client id of the managed identity."
+              },
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('name')), '2023-01-31').clientId]"
+            },
+            "name": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the managed identity - used as the SQL Entra admin login."
+              },
+              "value": "[parameters('name')]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "sqlOps",
       "resourceGroup": "[parameters('resourceGroupName')]",
       "properties": {
@@ -165,10 +270,13 @@
             "value": "[parameters('sqlAdminPassword')]"
           },
           "aadAdminObjectId": {
-            "value": "[parameters('aadAdminObjectId')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
           },
           "aadAdminLogin": {
-            "value": "[parameters('aadAdminLogin')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+          },
+          "aadAdminPrincipalType": {
+            "value": "Application"
           },
           "clientIpAddress": {
             "value": "[parameters('clientIpAddress')]"
@@ -184,7 +292,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "8346700777903984202"
+              "templateHash": "10474092171236043350"
             }
           },
           "parameters": {
@@ -209,27 +317,37 @@
             "administratorLogin": {
               "type": "string",
               "metadata": {
-                "description": "SQL administrator login name."
+                "description": "SQL administrator login. Local auth is DISABLED (Entra-only) but a login is kept for API compatibility."
               }
             },
             "administratorLoginPassword": {
               "type": "securestring",
               "metadata": {
-                "description": "SQL administrator password."
+                "description": "SQL administrator password. Never used - local auth is disabled - but kept for API compatibility."
               }
             },
             "aadAdminObjectId": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
-                "description": "Entra ID (Azure AD) admin object id. Leave empty to skip AAD admin."
+                "description": "Microsoft Entra admin object id (sid) for the server. Required (Entra-only auth)."
               }
             },
             "aadAdminLogin": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
-                "description": "Entra ID (Azure AD) admin display name / login."
+                "description": "Microsoft Entra admin login / display name."
+              }
+            },
+            "aadAdminPrincipalType": {
+              "type": "string",
+              "defaultValue": "Application",
+              "allowedValues": [
+                "User",
+                "Group",
+                "Application"
+              ],
+              "metadata": {
+                "description": "Entra principal type of the admin: User, Group, or Application (managed identity = Application)."
               }
             },
             "databaseSkuName": {
@@ -262,7 +380,6 @@
             }
           },
           "variables": {
-            "hasAadAdmin": "[not(empty(parameters('aadAdminObjectId')))]",
             "hasClientIp": "[not(empty(parameters('clientIpAddress')))]"
           },
           "resources": [
@@ -281,7 +398,14 @@
                 "version": "12.0",
                 "minimalTlsVersion": "1.2",
                 "publicNetworkAccess": "Enabled",
-                "administrators": "[if(variables('hasAadAdmin'), createObject('administratorType', 'ActiveDirectory', 'principalType', 'User', 'login', parameters('aadAdminLogin'), 'sid', parameters('aadAdminObjectId'), 'tenantId', subscription().tenantId, 'azureADOnlyAuthentication', false()), null())]"
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "principalType": "[parameters('aadAdminPrincipalType')]",
+                  "login": "[parameters('aadAdminLogin')]",
+                  "sid": "[parameters('aadAdminObjectId')]",
+                  "tenantId": "[subscription().tenantId]",
+                  "azureADOnlyAuthentication": true
+                }
               }
             },
             {
@@ -362,6 +486,7 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
       ]
     },
@@ -533,10 +658,13 @@
             "value": "[parameters('sqlAdminPassword')]"
           },
           "aadAdminObjectId": {
-            "value": "[parameters('aadAdminObjectId')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
           },
           "aadAdminLogin": {
-            "value": "[parameters('aadAdminLogin')]"
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+          },
+          "aadAdminPrincipalType": {
+            "value": "Application"
           },
           "clientIpAddress": {
             "value": "[parameters('clientIpAddress')]"
@@ -552,7 +680,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "8346700777903984202"
+              "templateHash": "10474092171236043350"
             }
           },
           "parameters": {
@@ -577,27 +705,37 @@
             "administratorLogin": {
               "type": "string",
               "metadata": {
-                "description": "SQL administrator login name."
+                "description": "SQL administrator login. Local auth is DISABLED (Entra-only) but a login is kept for API compatibility."
               }
             },
             "administratorLoginPassword": {
               "type": "securestring",
               "metadata": {
-                "description": "SQL administrator password."
+                "description": "SQL administrator password. Never used - local auth is disabled - but kept for API compatibility."
               }
             },
             "aadAdminObjectId": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
-                "description": "Entra ID (Azure AD) admin object id. Leave empty to skip AAD admin."
+                "description": "Microsoft Entra admin object id (sid) for the server. Required (Entra-only auth)."
               }
             },
             "aadAdminLogin": {
               "type": "string",
-              "defaultValue": "",
               "metadata": {
-                "description": "Entra ID (Azure AD) admin display name / login."
+                "description": "Microsoft Entra admin login / display name."
+              }
+            },
+            "aadAdminPrincipalType": {
+              "type": "string",
+              "defaultValue": "Application",
+              "allowedValues": [
+                "User",
+                "Group",
+                "Application"
+              ],
+              "metadata": {
+                "description": "Entra principal type of the admin: User, Group, or Application (managed identity = Application)."
               }
             },
             "databaseSkuName": {
@@ -630,7 +768,6 @@
             }
           },
           "variables": {
-            "hasAadAdmin": "[not(empty(parameters('aadAdminObjectId')))]",
             "hasClientIp": "[not(empty(parameters('clientIpAddress')))]"
           },
           "resources": [
@@ -649,7 +786,14 @@
                 "version": "12.0",
                 "minimalTlsVersion": "1.2",
                 "publicNetworkAccess": "Enabled",
-                "administrators": "[if(variables('hasAadAdmin'), createObject('administratorType', 'ActiveDirectory', 'principalType', 'User', 'login', parameters('aadAdminLogin'), 'sid', parameters('aadAdminObjectId'), 'tenantId', subscription().tenantId, 'azureADOnlyAuthentication', false()), null())]"
+                "administrators": {
+                  "administratorType": "ActiveDirectory",
+                  "principalType": "[parameters('aadAdminPrincipalType')]",
+                  "login": "[parameters('aadAdminLogin')]",
+                  "sid": "[parameters('aadAdminObjectId')]",
+                  "tenantId": "[subscription().tenantId]",
+                  "azureADOnlyAuthentication": true
+                }
               }
             },
             {
@@ -730,6 +874,7 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]"
       ]
     },
@@ -748,6 +893,9 @@
           "location": {
             "value": "[parameters('location')]"
           },
+          "seedIdentityId": {
+            "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.id.value]"
+          },
           "opsSqlServerFqdn": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps'), '2025-04-01').outputs.fullyQualifiedDomainName.value]"
           },
@@ -760,11 +908,11 @@
           "etlDatabaseName": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl'), '2025-04-01').outputs.databaseName.value]"
           },
-          "sqlAdminLogin": {
-            "value": "[parameters('sqlAdminLogin')]"
+          "grantObjectId": {
+            "value": "[parameters('aadAdminObjectId')]"
           },
-          "sqlAdminPassword": {
-            "value": "[parameters('sqlAdminPassword')]"
+          "grantLogin": {
+            "value": "[parameters('aadAdminLogin')]"
           },
           "storageAccountName": {
             "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageAccountName.value]"
@@ -789,7 +937,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "13927969695716825650"
+              "templateHash": "16629442271756390917"
             }
           },
           "parameters": {
@@ -797,6 +945,12 @@
               "type": "string",
               "metadata": {
                 "description": "Azure region for the deployment script + its transient storage."
+              }
+            },
+            "seedIdentityId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource id of the user-assigned managed identity (also the SQL Entra admin)."
               }
             },
             "opsSqlServerFqdn": {
@@ -823,16 +977,18 @@
                 "description": "ETL database name."
               }
             },
-            "sqlAdminLogin": {
+            "grantObjectId": {
               "type": "string",
+              "defaultValue": "",
               "metadata": {
-                "description": "SQL administrator login."
+                "description": "Object id of the deploying user to grant db_owner (Entra). Empty to skip."
               }
             },
-            "sqlAdminPassword": {
-              "type": "securestring",
+            "grantLogin": {
+              "type": "string",
+              "defaultValue": "",
               "metadata": {
-                "description": "SQL administrator password."
+                "description": "UPN / login of the deploying user to grant db_owner. Empty to skip."
               }
             },
             "storageAccountName": {
@@ -875,6 +1031,12 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "kind": "AzurePowerShell",
+              "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                  "[format('{0}', parameters('seedIdentityId'))]": {}
+                }
+              },
               "properties": {
                 "azPowerShellVersion": "11.5",
                 "retentionInterval": "PT1H",
@@ -899,12 +1061,12 @@
                     "value": "[parameters('etlDatabaseName')]"
                   },
                   {
-                    "name": "SQL_LOGIN",
-                    "value": "[parameters('sqlAdminLogin')]"
+                    "name": "GRANT_OBJID",
+                    "value": "[parameters('grantObjectId')]"
                   },
                   {
-                    "name": "SQL_PASSWORD",
-                    "secureValue": "[parameters('sqlAdminPassword')]"
+                    "name": "GRANT_UPN",
+                    "value": "[parameters('grantLogin')]"
                   },
                   {
                     "name": "STORAGE_ACCT",
@@ -923,7 +1085,7 @@
                     "value": "[parameters('seedSourceUrl')]"
                   }
                 ],
-                "scriptContent": "$ErrorActionPreference = 'Stop'\r\n$ProgressPreference = 'SilentlyContinue'\r\n\r\nWrite-Host \"Installing SqlServer module...\"\r\nInstall-Module SqlServer -Force -Scope CurrentUser -AllowClobber -Repository PSGallery | Out-Null\r\nImport-Module SqlServer\r\n\r\nfunction Get-SeedFile([string] $rel) {\r\n  $url = \"$($env:SEED_BASE_URL)/$rel\"\r\n  $out = Join-Path $env:TEMP ([System.IO.Path]::GetFileName($rel))\r\n  Write-Host \"Downloading $url\"\r\n  Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing\r\n  return $out\r\n}\r\n\r\n$opsSql = Get-SeedFile 'data/sql/ops_seed.sql'\r\n$etlSql = Get-SeedFile 'data/sql/etl_seed.sql'\r\n$regions = Get-SeedFile 'data/blob/reference/regions/regions.csv'\r\n\r\nWrite-Host \"Seeding $($env:OPS_DB) on $($env:OPS_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB `\r\n  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `\r\n  -InputFile $opsSql -TrustServerCertificate -QueryTimeout 300 -ConnectionTimeout 60\r\n\r\nWrite-Host \"Seeding $($env:ETL_DB) on $($env:ETL_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB `\r\n  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `\r\n  -InputFile $etlSql -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60\r\n\r\nWrite-Host \"Uploading regions.csv to $($env:STORAGE_ACCT)/$($env:CONTAINER)...\"\r\n$ctx = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCT -StorageAccountKey $env:STORAGE_KEY\r\nSet-AzStorageBlobContent -File $regions -Container $env:CONTAINER -Blob 'regions/regions.csv' -Context $ctx -Force | Out-Null\r\n\r\nWrite-Host \"Seeding complete.\"\r\n$DeploymentScriptOutputs = @{\r\n  status = 'seeded'\r\n  opsDatabase = $env:OPS_DB\r\n  etlDatabase = $env:ETL_DB\r\n  shortcutBlob = \"$($env:CONTAINER)/regions/regions.csv\"\r\n}\r\n"
+                "scriptContent": "$ErrorActionPreference = 'Stop'\r\n$ProgressPreference = 'SilentlyContinue'\r\n\r\nWrite-Host \"Installing SqlServer module...\"\r\nInstall-Module SqlServer -Force -Scope CurrentUser -AllowClobber -Repository PSGallery | Out-Null\r\nImport-Module SqlServer\r\n\r\n# This script runs as the user-assigned managed identity (auto-connected to Az),\r\n# which is the SQL Entra admin. Get a token for Azure SQL.\r\n$token = (Get-AzAccessToken -ResourceUrl 'https://database.windows.net/').Token\r\n\r\nfunction Get-SeedFile([string] $rel) {\r\n  $url = \"$($env:SEED_BASE_URL)/$rel\"\r\n  $out = Join-Path $env:TEMP ([System.IO.Path]::GetFileName($rel))\r\n  Write-Host \"Downloading $url\"\r\n  Invoke-WebRequest -Uri $url -OutFile $out -UseBasicParsing\r\n  return $out\r\n}\r\n\r\n$opsSql = Get-SeedFile 'data/sql/ops_seed.sql'\r\n$etlSql = Get-SeedFile 'data/sql/etl_seed.sql'\r\n$regions = Get-SeedFile 'data/blob/reference/regions/regions.csv'\r\n\r\nWrite-Host \"Seeding $($env:OPS_DB) on $($env:OPS_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB -AccessToken $token `\r\n  -InputFile $opsSql -TrustServerCertificate -QueryTimeout 300 -ConnectionTimeout 60\r\n\r\nWrite-Host \"Seeding $($env:ETL_DB) on $($env:ETL_FQDN)...\"\r\nInvoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB -AccessToken $token `\r\n  -InputFile $etlSql -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60\r\n\r\n# Grant the deploying user db_owner on both DBs (SID-based, no Directory Reader needed).\r\nif ($env:GRANT_OBJID -and $env:GRANT_UPN) {\r\n  $grant = @\"\r\nDECLARE @sid varbinary(16) = CAST(CAST('$($env:GRANT_OBJID)' AS uniqueidentifier) AS varbinary(16));\r\nDECLARE @sidStr nvarchar(100) = CONVERT(nvarchar(100), @sid, 1);\r\nDECLARE @upn sysname = N'$($env:GRANT_UPN)';\r\nIF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @upn)\r\n  EXEC('CREATE USER ' + QUOTENAME(@upn) + ' WITH SID = ' + @sidStr + ', TYPE = E;');\r\nIF IS_ROLEMEMBER('db_owner', @upn) = 0\r\n  EXEC('ALTER ROLE db_owner ADD MEMBER ' + QUOTENAME(@upn) + ';');\r\n\"@\r\n  Write-Host \"Granting $($env:GRANT_UPN) db_owner on $($env:OPS_DB)...\"\r\n  Invoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB -AccessToken $token -Query $grant -TrustServerCertificate -ConnectionTimeout 60\r\n  Write-Host \"Granting $($env:GRANT_UPN) db_owner on $($env:ETL_DB)...\"\r\n  Invoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB -AccessToken $token -Query $grant -TrustServerCertificate -ConnectionTimeout 60\r\n}\r\n\r\nWrite-Host \"Uploading regions.csv to $($env:STORAGE_ACCT)/$($env:CONTAINER)...\"\r\n$ctx = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCT -StorageAccountKey $env:STORAGE_KEY\r\nSet-AzStorageBlobContent -File $regions -Container $env:CONTAINER -Blob 'regions/regions.csv' -Context $ctx -Force | Out-Null\r\n\r\nWrite-Host \"Seeding complete.\"\r\n$DeploymentScriptOutputs = @{\r\n  status = 'seeded'\r\n  opsDatabase = $env:OPS_DB\r\n  etlDatabase = $env:ETL_DB\r\n  grantedUser = $env:GRANT_UPN\r\n  shortcutBlob = \"$($env:CONTAINER)/regions/regions.csv\"\r\n}\r\n"
               }
             }
           ],
@@ -939,6 +1101,7 @@
         }
       },
       "dependsOn": [
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity')]",
         "[subscriptionResourceId('Microsoft.Resources/resourceGroups', parameters('resourceGroupName'))]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlEtl')]",
         "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'sqlOps')]",
@@ -986,6 +1149,14 @@
     "sqlAdminLogin": {
       "type": "string",
       "value": "[parameters('sqlAdminLogin')]"
+    },
+    "seedIdentityName": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.name.value]"
+    },
+    "seedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[reference(extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('resourceGroupName')), 'Microsoft.Resources/deployments', 'seedIdentity'), '2025-04-01').outputs.principalId.value]"
     }
   }
 }

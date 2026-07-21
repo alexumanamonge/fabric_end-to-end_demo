@@ -21,7 +21,8 @@ scheduled **batch ETL** that lands source tables into the Bronze Lakehouse.
 1. In the workspace: **+ New item › Copy job**.
 2. **Source:** Azure SQL Database.
    - Server: `<etlSqlServerFqdn>`, Database: `sqldb-etl`
-   - Auth: **Basic** (SQL admin) or **Organizational account**.
+   - Auth: **Organizational account** (Entra ID) — the servers are Entra-only;
+     sign in with the account granted `db_owner`. (SQL/Basic auth is disabled.)
    - Select tables **`dbo.orders`** and **`dbo.support_tickets`**.
 3. **Destination:** Lakehouse **`LH_Bronze`** → **Tables**.
    - Map `orders → orders`, `support_tickets → support_tickets`.

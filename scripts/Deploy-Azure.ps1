@@ -1,28 +1,35 @@
 <#
 .SYNOPSIS
-  One-command deploy of the Azure source systems for the Fabric end-to-end demo.
+  One-command deploy of the Azure source systems for the Fabric end-to-end demo
+  (Microsoft Entra ID-only authentication).
 
 .DESCRIPTION
   1. (Optional) regenerates deterministic demo data.
-  2. Deploys infra\main.bicep at subscription scope (creates the resource group).
-  3. Seeds the two Azure SQL databases and uploads the shortcut reference files.
+  2. Deploys infra\main.bicep at subscription scope (creates the resource group,
+     a user-assigned managed identity that is the SQL Entra admin, both SQL
+     servers/DBs, and the storage account).
+  3. Seeds the two Azure SQL databases and uploads the shortcut reference files
+     via an in-template deployment script that authenticates with an Entra
+     access token - no SQL password anywhere.
+  4. Grants you (the deploying user) db_owner on both databases.
 
-  Fabric capacity and workspace are created manually - see docs\fabric-workspace-setup.md.
+  There is NO SQL password: the servers use Entra-only authentication to satisfy
+  the "Azure SQL requires Entra-only auth" org policy.
+
+  Fabric capacity and workspace are created manually - see
+  docs\fabric-workspace-setup.md.
 
 .EXAMPLE
-  $env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'
   .\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 
 .NOTES
-  Prerequisites: Azure CLI (az login done), Bicep, and either the SqlServer
-  PowerShell module or sqlcmd.exe for seeding.
+  Prerequisites: Azure CLI (az login done). Seeding runs in Azure (deployment
+  script), so no local SqlServer module / sqlcmd is required.
 #>
 [CmdletBinding()]
 param(
   [string] $ResourceGroupName = 'rg-fabric-e2e-demo',
   [string] $Location = 'eastus2',
-  [string] $SqlAdminLogin = 'fabricadmin',
-  [string] $SqlAdminPassword = $env:SQL_ADMIN_PASSWORD,
   [switch] $SkipDataGen,
   [switch] $SkipSeed
 )
@@ -30,10 +37,6 @@ param(
 $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $deploymentName = "fabric-demo-source"
-
-if (-not $SqlAdminPassword) {
-  throw "Provide the SQL admin password via -SqlAdminPassword or `$env:SQL_ADMIN_PASSWORD."
-}
 
 # --- 0. Confirm az login -----------------------------------------------------
 $account = az account show --query "{sub:name, id:id}" -o json 2>$null | ConvertFrom-Json
@@ -47,25 +50,25 @@ if (-not $SkipDataGen) {
   if ($LASTEXITCODE -ne 0) { throw "Data generation failed." }
 }
 
-# --- 2. Capture identity + client IP for AAD admin and firewall --------------
+# --- 2. Capture your identity (Entra admin grant) + client IP (firewall) -----
 $objectId = az ad signed-in-user show --query id -o tsv 2>$null
 $upn      = az ad signed-in-user show --query userPrincipalName -o tsv 2>$null
 try   { $clientIp = (Invoke-RestMethod -Uri 'https://api.ipify.org' -TimeoutSec 10) }
 catch { $clientIp = ''; Write-Warning "Could not detect public IP; skipping client firewall rule." }
 
+$seedData = (-not $SkipSeed).ToString().ToLower()
+
 # --- 3. Deploy Bicep (subscription scope) ------------------------------------
-Write-Host "Deploying Bicep (this creates the resource group and all resources)..." -ForegroundColor Green
+Write-Host "Deploying Bicep (resource group, managed identity, SQL, storage, seed)..." -ForegroundColor Green
 $deployJson = az deployment sub create `
   --name $deploymentName `
   --location $Location `
   --template-file (Join-Path $repoRoot 'infra\main.bicep') `
   --parameters resourceGroupName=$ResourceGroupName location=$Location `
-               sqlAdminLogin=$SqlAdminLogin `
-               sqlAdminPassword=$SqlAdminPassword `
                aadAdminObjectId=$objectId `
                aadAdminLogin=$upn `
                clientIpAddress=$clientIp `
-               seedData=false `
+               seedData=$seedData `
   --query properties.outputs -o json
 if ($LASTEXITCODE -ne 0) { throw "Bicep deployment failed." }
 
@@ -81,6 +84,7 @@ $outputs = [ordered]@{
   storageDfsEndpoint   = $o.storageDfsEndpoint.value
   storageContainerName = $o.storageContainerName.value
   sqlAdminLogin        = $o.sqlAdminLogin.value
+  seedIdentityName     = $o.seedIdentityName.value
 }
 
 Write-Host "`nDeployment outputs:" -ForegroundColor Green
@@ -91,18 +95,10 @@ $outFile = Join-Path $repoRoot 'infra\deployment-outputs.json'
 $outputs | ConvertTo-Json | Set-Content -Path $outFile -Encoding utf8
 Write-Host "Saved outputs to $outFile" -ForegroundColor Green
 
-# --- 4. Seed data ------------------------------------------------------------
-if (-not $SkipSeed) {
-  & (Join-Path $PSScriptRoot 'Seed-Data.ps1') `
-    -ResourceGroupName $outputs.resourceGroupName `
-    -OpsServerFqdn     $outputs.opsSqlServerFqdn `
-    -OpsDatabase       $outputs.opsDatabaseName `
-    -EtlServerFqdn     $outputs.etlSqlServerFqdn `
-    -EtlDatabase       $outputs.etlDatabaseName `
-    -SqlAdminLogin     $outputs.sqlAdminLogin `
-    -SqlAdminPassword  $SqlAdminPassword `
-    -StorageAccountName $outputs.storageAccountName `
-    -ContainerName     $outputs.storageContainerName
+if ($SkipSeed) {
+  Write-Host "`nSeeding was skipped (-SkipSeed). Seed later with scripts\Seed-Data.ps1." -ForegroundColor Yellow
+} else {
+  Write-Host "`nDatabases seeded and you were granted db_owner (Entra) by the deployment script." -ForegroundColor Green
 }
 
 Write-Host "`nDone. Next: create the Fabric capacity + workspace and wire up ingestion." -ForegroundColor Green

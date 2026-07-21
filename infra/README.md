@@ -19,19 +19,32 @@ All resources land in a single resource group (`rg-fabric-e2e-demo` by default; 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Falexumanamonge%2Ffabric_end-to-end_demo%2Fmain%2Finfra%2Fazuredeploy.json)
 
 The button loads [`azuredeploy.json`](azuredeploy.json) (the ARM template compiled
-from `main.bicep`) into the Azure portal. Pick a region and set the SQL admin
-password; all other parameters have sensible defaults.
+from `main.bicep`) into the Azure portal. Pick a region — **no password is
+required** (Entra-only auth); all other parameters have sensible defaults.
+
+**Authentication (Entra ID-only).** To satisfy the org policy *"Azure SQL Server
+Instances cannot be created unless Entra ID only authentication is enabled"*, both
+SQL servers are created with `azureADOnlyAuthentication: true` (SQL logins
+disabled). A **user-assigned managed identity** (`modules/identity.bicep`) is
+created and set as the single SQL Entra admin; the seed deployment script runs as
+that identity and connects with an Entra access token (`Invoke-Sqlcmd
+-AccessToken`). Optionally set `aadAdminObjectId` (your Entra objectId) +
+`aadAdminLogin` (your UPN) to be granted `db_owner` on both databases (a SID-based
+`CREATE USER`, so no Directory Reader role is needed). `sqlAdminLogin` /
+`sqlAdminPassword` still exist for ARM API compatibility but are **never usable**
+(local auth is off); the password has a generated default so no input is required.
 
 **Notes**
 - This is a **subscription-scoped** template — it creates the resource group for
   you (no need to pre-create one). The resource group name and every resource name
-  (SQL servers, databases, storage account, container) are **parameters** with
-  sensible defaults, so you can customize them at deploy time.
+  (SQL servers, databases, storage account, container, managed identity) are
+  **parameters** with sensible defaults, so you can customize them at deploy time.
 - **Automated seeding is on by default** (`seedData = true`): a PowerShell
-  deployment script (Azure Container Instance) downloads the seed files from the
-  repo's public raw URL (`seedSourceUrl`), loads both SQL databases with
-  `Invoke-Sqlcmd`, and uploads `regions.csv` to the Shortcut container. Set
-  `seedData = false` to provision without seeding (then use `Seed-Data.ps1`).
+  deployment script (Azure Container Instance), running as the managed identity,
+  downloads the seed files from the repo's public raw URL (`seedSourceUrl`), loads
+  both SQL databases with `Invoke-Sqlcmd -AccessToken` (Entra token), and uploads
+  `regions.csv` to the Shortcut container. Set `seedData = false` to provision
+  without seeding (then use `Seed-Data.ps1`).
 - The seed step reaches SQL through each server's **AllowAllAzureServices**
   firewall rule and requires the **Microsoft.ContainerInstance** resource provider
   to be registered in the subscription (usually automatic).
@@ -49,7 +62,8 @@ password; all other parameters have sensible defaults.
 | `opsSqlServerName` / `opsDatabaseName` | unique `sql-ops-…` / `sqldb-ops` | Mirroring source (override with any name). |
 | `etlSqlServerName` / `etlDatabaseName` | unique `sql-etl-…` / `sqldb-etl` | Copy Job source (override with any name). |
 | `storageAccountName` / `containerName` | unique `stfabric…` / `reference` | Shortcut source (override with any name). |
-| `sqlAdminLogin` / `sqlAdminPassword` | `fabricadmin` / *(required)* | SQL admin. |
+| `seedIdentityName` | unique `id-fabric-seed-…` | Managed identity used as SQL Entra admin + seed runtime. |
+| `aadAdminObjectId` / `aadAdminLogin` | *(empty)* | Your Entra objectId + UPN, granted `db_owner`. |
 | `seedData` | `true` | Run the automated seed deployment script. |
 | `seedSourceUrl` | repo `main` raw URL | Where the seed step downloads files from. |
 
@@ -58,17 +72,19 @@ password; all other parameters have sensible defaults.
 | File | Purpose |
 |---|---|
 | `main.bicep` | Subscription-scoped entry point; creates the RG + all resources. |
-| `modules/sqlServer.bicep` | Reusable Azure SQL logical server + database + firewall. |
+| `modules/identity.bicep` | User-assigned managed identity: SQL Entra admin + seed runtime. |
+| `modules/sqlServer.bicep` | Reusable Azure SQL logical server + database + firewall (Entra-only auth). |
 | `modules/storage.bicep` | ADLS Gen2 storage account + container for the shortcut source. |
-| `modules/seed.bicep` | Deployment script that auto-seeds the SQL DBs + uploads the Shortcut file. |
-| `main.bicepparam` | Parameter values. **Never commit real secrets.** |
+| `modules/seed.bicep` | Deployment script that auto-seeds the SQL DBs (Entra token) + uploads the Shortcut file. |
+| `main.bicepparam` | Optional parameter values (all optional; no secrets). |
 | `azuredeploy.json` | ARM template compiled from `main.bicep` — powers the **Deploy to Azure** button. |
 
 ## Prerequisites
 
 - Azure CLI ≥ 2.86 and Bicep ≥ 0.41 (`az bicep version`).
 - Rights to create a resource group + resources in the target subscription.
-- `sqlcmd` **or** the PowerShell `SqlServer` module for seeding (see `../scripts`).
+- Only for a **local re-seed** (`Seed-Data.ps1`): the PowerShell `SqlServer` module
+  (`Invoke-Sqlcmd -AccessToken`). The in-template seed needs nothing locally.
 
 ## Deploy
 
@@ -78,25 +94,22 @@ Use the wrapper script (recommended — it also seeds data):
 ..\scripts\Deploy-Azure.ps1 -ResourceGroupName rg-fabric-e2e-demo -Location eastus2
 ```
 
-Or deploy the Bicep directly:
+Or deploy the Bicep directly (no password — Entra-only auth):
 
 ```powershell
-# 1. Set the SQL admin password securely (not stored in files)
-$env:SQL_ADMIN_PASSWORD = 'Ch@ngeMe-StrongP@ss1'
-
-# 2. (Recommended) capture your objectId + public IP for AAD admin & firewall
+# (Recommended) capture your objectId + UPN (db_owner grant) and public IP (firewall)
 $objectId = az ad signed-in-user show --query id -o tsv
+$upn      = az ad signed-in-user show --query userPrincipalName -o tsv
 $myIp     = (Invoke-RestMethod https://api.ipify.org)
 
-# 3. Deploy at subscription scope
+# Deploy at subscription scope
 az deployment sub create `
   --name fabric-demo-source `
   --location eastus2 `
   --template-file main.bicep `
   --parameters main.bicepparam `
-  --parameters sqlAdminPassword=$env:SQL_ADMIN_PASSWORD `
-               aadAdminObjectId=$objectId `
-               aadAdminLogin=$(az ad signed-in-user show --query userPrincipalName -o tsv) `
+  --parameters aadAdminObjectId=$objectId `
+               aadAdminLogin=$upn `
                clientIpAddress=$myIp
 ```
 

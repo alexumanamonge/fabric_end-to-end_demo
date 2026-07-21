@@ -14,7 +14,9 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 
 - `scripts\Deploy-Azure.ps1` completed (sources deployed + seeded).
 - The `opsSqlServerFqdn` / `opsDatabaseName` from `infra\deployment-outputs.json`.
-- SQL admin login/password (or your Entra ID admin if you set `aadAdminObjectId`).
+- Your Entra ID account with `db_owner` on `sqldb-ops` (granted automatically by
+  the deployment when you pass `aadAdminObjectId`/`aadAdminLogin`). The servers are
+  **Entra ID-only** — there is no SQL login/password.
 
 ## Steps (MANUAL — Fabric portal)
 
@@ -22,8 +24,8 @@ automatically available in OneLake and can be read/shortcut from `LH_Bronze`.
 2. **New connection:**
    - Server: `<opsSqlServerFqdn>` (e.g. `sql-ops-xxxxxxxx.database.windows.net`)
    - Database: `sqldb-ops`
-   - Authentication: **Basic** with the SQL admin login/password
-     (or **Organizational account** if using Entra ID admin).
+   - Authentication: **Organizational account** (Entra ID) — sign in with the
+     account that was granted `db_owner`. (Basic/SQL auth is disabled.)
 3. Select tables to mirror: **`dbo.customers`** and **`dbo.products`**.
 4. Name the item **`mirror_sqldb_ops`** and create it.
 5. Wait for initial snapshot; status shows **Running / Replicating**.

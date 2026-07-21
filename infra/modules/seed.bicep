@@ -1,14 +1,20 @@
 // ---------------------------------------------------------------------------
-// Automated seeding via an Azure PowerShell deployment script.
+// Automated seeding via an Azure PowerShell deployment script (Entra-only auth).
+//  - Runs AS the user-assigned managed identity that is the SQL Entra admin.
 //  - Downloads the seed SQL + Shortcut file from the (public) repo raw URL.
-//  - Runs data\sql\ops_seed.sql and etl_seed.sql with Invoke-Sqlcmd.
-//  - Uploads regions.csv to the Shortcut storage container.
-// Runs inside an Azure Container Instance managed by the deploymentScripts RP,
-// which reaches SQL through the server's "AllowAllAzureServices" firewall rule.
+//  - Connects with an Entra access token (Invoke-Sqlcmd -AccessToken) - no SQL
+//    password - and runs data\sql\ops_seed.sql and etl_seed.sql.
+//  - Optionally grants the deploying user db_owner on both databases (SID-based,
+//    so no Entra Directory Reader role is required).
+//  - Uploads regions.csv to the Shortcut storage container (account key).
+// Reaches SQL through the server's "AllowAllAzureServices" firewall rule.
 // ---------------------------------------------------------------------------
 
 @description('Azure region for the deployment script + its transient storage.')
 param location string
+
+@description('Resource id of the user-assigned managed identity (also the SQL Entra admin).')
+param seedIdentityId string
 
 @description('FQDN of the operational SQL server (Mirroring source).')
 param opsSqlServerFqdn string
@@ -22,12 +28,11 @@ param etlSqlServerFqdn string
 @description('ETL database name.')
 param etlDatabaseName string
 
-@description('SQL administrator login.')
-param sqlAdminLogin string
+@description('Object id of the deploying user to grant db_owner (Entra). Empty to skip.')
+param grantObjectId string = ''
 
-@description('SQL administrator password.')
-@secure()
-param sqlAdminPassword string
+@description('UPN / login of the deploying user to grant db_owner. Empty to skip.')
+param grantLogin string = ''
 
 @description('Storage account that holds the Shortcut source files.')
 param storageAccountName string
@@ -44,7 +49,7 @@ param forceUpdateTag string
 @description('Resource tags.')
 param tags object = {}
 
-// Existing storage account so we can read its key (data-plane upload, no login).
+// Existing storage account so we can read its key (data-plane upload).
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
@@ -54,6 +59,12 @@ resource seedScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
   location: location
   tags: tags
   kind: 'AzurePowerShell'
+  identity: {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${seedIdentityId}': {}
+    }
+  }
   properties: {
     azPowerShellVersion: '11.5'
     retentionInterval: 'PT1H'
@@ -65,8 +76,8 @@ resource seedScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       { name: 'OPS_DB', value: opsDatabaseName }
       { name: 'ETL_FQDN', value: etlSqlServerFqdn }
       { name: 'ETL_DB', value: etlDatabaseName }
-      { name: 'SQL_LOGIN', value: sqlAdminLogin }
-      { name: 'SQL_PASSWORD', secureValue: sqlAdminPassword }
+      { name: 'GRANT_OBJID', value: grantObjectId }
+      { name: 'GRANT_UPN', value: grantLogin }
       { name: 'STORAGE_ACCT', value: storageAccountName }
       { name: 'STORAGE_KEY', secureValue: storage.listKeys().keys[0].value }
       { name: 'CONTAINER', value: containerName }
@@ -79,6 +90,10 @@ $ProgressPreference = 'SilentlyContinue'
 Write-Host "Installing SqlServer module..."
 Install-Module SqlServer -Force -Scope CurrentUser -AllowClobber -Repository PSGallery | Out-Null
 Import-Module SqlServer
+
+# This script runs as the user-assigned managed identity (auto-connected to Az),
+# which is the SQL Entra admin. Get a token for Azure SQL.
+$token = (Get-AzAccessToken -ResourceUrl 'https://database.windows.net/').Token
 
 function Get-SeedFile([string] $rel) {
   $url = "$($env:SEED_BASE_URL)/$rel"
@@ -93,14 +108,29 @@ $etlSql = Get-SeedFile 'data/sql/etl_seed.sql'
 $regions = Get-SeedFile 'data/blob/reference/regions/regions.csv'
 
 Write-Host "Seeding $($env:OPS_DB) on $($env:OPS_FQDN)..."
-Invoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB `
-  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `
+Invoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB -AccessToken $token `
   -InputFile $opsSql -TrustServerCertificate -QueryTimeout 300 -ConnectionTimeout 60
 
 Write-Host "Seeding $($env:ETL_DB) on $($env:ETL_FQDN)..."
-Invoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB `
-  -Username $env:SQL_LOGIN -Password $env:SQL_PASSWORD `
+Invoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB -AccessToken $token `
   -InputFile $etlSql -TrustServerCertificate -QueryTimeout 600 -ConnectionTimeout 60
+
+# Grant the deploying user db_owner on both DBs (SID-based, no Directory Reader needed).
+if ($env:GRANT_OBJID -and $env:GRANT_UPN) {
+  $grant = @"
+DECLARE @sid varbinary(16) = CAST(CAST('$($env:GRANT_OBJID)' AS uniqueidentifier) AS varbinary(16));
+DECLARE @sidStr nvarchar(100) = CONVERT(nvarchar(100), @sid, 1);
+DECLARE @upn sysname = N'$($env:GRANT_UPN)';
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @upn)
+  EXEC('CREATE USER ' + QUOTENAME(@upn) + ' WITH SID = ' + @sidStr + ', TYPE = E;');
+IF IS_ROLEMEMBER('db_owner', @upn) = 0
+  EXEC('ALTER ROLE db_owner ADD MEMBER ' + QUOTENAME(@upn) + ';');
+"@
+  Write-Host "Granting $($env:GRANT_UPN) db_owner on $($env:OPS_DB)..."
+  Invoke-Sqlcmd -ServerInstance $env:OPS_FQDN -Database $env:OPS_DB -AccessToken $token -Query $grant -TrustServerCertificate -ConnectionTimeout 60
+  Write-Host "Granting $($env:GRANT_UPN) db_owner on $($env:ETL_DB)..."
+  Invoke-Sqlcmd -ServerInstance $env:ETL_FQDN -Database $env:ETL_DB -AccessToken $token -Query $grant -TrustServerCertificate -ConnectionTimeout 60
+}
 
 Write-Host "Uploading regions.csv to $($env:STORAGE_ACCT)/$($env:CONTAINER)..."
 $ctx = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCT -StorageAccountKey $env:STORAGE_KEY
@@ -111,6 +141,7 @@ $DeploymentScriptOutputs = @{
   status = 'seeded'
   opsDatabase = $env:OPS_DB
   etlDatabase = $env:ETL_DB
+  grantedUser = $env:GRANT_UPN
   shortcutBlob = "$($env:CONTAINER)/regions/regions.csv"
 }
 '''
