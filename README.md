@@ -143,7 +143,31 @@ connections to the two SQL servers with your organizational account; (3) **seed 
 databases from Fabric** by running the two SQL scripts through the gateway. Full
 steps: [`docs/networking-gateway.md`](docs/networking-gateway.md).
 
-### Step 4 — Wire the three ingestion patterns (MANUAL)
+> **Keep the seed pipeline out of Git.** The one-time seed uses a Fabric **Data
+> pipeline**, which is a Git-tracked item. Do **not** commit it, and **delete it
+> after seeding** so it never syncs to the repo and breaks future deployments.
+> (Same workspace is fine; a separate non–Git-connected workspace is an option if
+> you want this workspace's Source control pane pristine.) Details in the guide.
+
+### Populate the medallion — pick one of two options
+
+You can fill Bronze (and then Silver/Gold) **two ways**. Both run the exact same
+`01`/`02` transforms, so everything downstream (semantic model, report, Data Agent)
+is identical.
+
+| | **Option A — Real ingestion** (full demo) | **Option B — Offline synthetic seed** (fastest / no Azure) |
+|---|---|---|
+| What it shows | The three real ingestion patterns landing live data | A working medallion on generated data |
+| Needs | Steps 1, 3 **and** 4 (Azure SQL + storage, gateway, Mirroring/Shortcut/Copy Job) | **Only** the Git-synced workspace from Step 2 — skip Steps 1, 3, 4 |
+| How | Wire ingestion (Step 4), then run the pipeline with `RUN_OFFLINE_SEED = False` | Run the pipeline with `RUN_OFFLINE_SEED = True` |
+| Data | Live rows from your sources | Deterministic synthetic rows (fixed seed → same every run) |
+
+> **Option B is a great standalone demo** when you have no Azure sources handy (or
+> want a fast, self-contained run). Narrative: *"the platform runs end-to-end on
+> synthetic data today; in production these same Bronze tables are fed by Mirroring,
+> Shortcut, and Copy Job."* If you use Option B, **skip Step 4** and jump to Step 5.
+
+### Step 4 — (Option A only) Wire the three ingestion patterns (MANUAL)
 
 | Pattern | Guide |
 |---|---|
@@ -158,12 +182,17 @@ steps: [`docs/networking-gateway.md`](docs/networking-gateway.md).
 
 The notebooks were already created in your workspace by Git integration (Step 2).
 
-1. Open the workspace and find the `*.Notebook` items (e.g. `03_run_end_to_end`).
-2. If Fabric can't auto-resolve the workspace name, set `WORKSPACE_NAME` in each notebook.
-3. Run **`03_run_end_to_end`** (leave `RUN_OFFLINE_SEED = False`).
+1. Open the workspace and open **`03_run_end_to_end`**.
+2. Choose your data source at the top of the notebook:
+   - **Option A (real ingestion):** leave `RUN_OFFLINE_SEED = False`.
+   - **Option B (offline synthetic):** set `RUN_OFFLINE_SEED = True` — this first
+     runs `00_generate_raw_data` to seed Bronze, then Silver and Gold. No Azure
+     sources needed.
+3. **Run all.** It builds Bronze → Silver → Gold and prints a row-count summary.
 
-> **No Azure sources handy?** Set `RUN_OFFLINE_SEED = True` in `03_run_end_to_end`
-> (or run `00_generate_raw_data`) to seed Bronze offline and still demo the medallion.
+> The notebooks auto-detect your workspace. If detection ever fails, set
+> `WORKSPACE_NAME` at the top of each notebook to your workspace name (use a name
+> **without spaces**, e.g. `End-to-End_Fabric_Demo`).
 
 ### Step 6 — Bind the semantic model, then build the Data Agent & ontology
 

@@ -14,6 +14,7 @@ A suggested order for delivering the demo live. Full setup detail is in
    notebooks, the semantic model, and the report — do **not** build them by hand.
 4. Create the **managed VNet data gateway** in Fabric on the delegated subnet, then
    **seed the SQL databases from Fabric** through it (`docs\networking-gateway.md`).
+   Don't commit the seed pipeline to Git — delete it after seeding.
 5. Wire ingestion: Mirroring, Shortcut, Copy Job (`docs\ingestion-*.md`) — SQL
    connections select the managed VNet data gateway.
 6. Run `03_run_end_to_end`; bind the semantic model (`fabric\semantic-model\README.md`),

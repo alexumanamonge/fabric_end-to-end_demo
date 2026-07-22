@@ -79,11 +79,35 @@ Seed them **through the gateway** with your admin account:
    contents of [`../data/sql/etl_seed.sql`](../data/sql/etl_seed.sql) (creates
    `orders` and `support_tickets`).
 4. **Run** the pipeline. Both databases are now seeded over the private endpoints.
+5. **Delete the seed pipeline** once both databases are loaded — see the note below.
 
-> Alternatives: run the same `.sql` files from any host that already has private
-> line-of-sight to the servers (e.g. a jump host in a peered hub, or Azure Cloud
-> Shell configured with VNet access). The Fabric pipeline path needs no extra
-> infrastructure and is the recommended approach for this demo.
+> ### ⚠️ Keep the seed pipeline OUT of Git
+>
+> A Data pipeline **is a Git-tracked item type**, so after you create it, it appears
+> in the workspace **Source control** pane as an *uncommitted* change. It is a
+> one-time, environment-specific bootstrap (it references *your* gateway
+> connections) and must **not** land in the repo, or future deployments would sync a
+> stray, broken artifact.
+>
+> Fabric never pushes to Git automatically — nothing reaches the repo until you
+> click **Commit**. So the rule is simple:
+>
+> - **Never commit the seed pipeline**, and
+> - **Delete it after seeding** so the Source control pane stays clean and it can't
+>   be swept into a later "commit all."
+>
+> **Same workspace vs. a separate one:** the same end-to-end workspace is the
+> simplest choice — the gateway, connections, and target Lakehouses are all here,
+> and the *don't-commit-then-delete* rule keeps the repo clean. If you'd rather keep
+> this workspace's Source control pane pristine, create the seed pipeline in a
+> **separate, non–Git-connected "bootstrap" workspace** instead; connections and
+> gateways are **tenant-level** (*Manage connections and gateways*), so they work
+> from any workspace.
+
+> Alternatives to a pipeline: run the same `.sql` files from any host that already
+> has private line-of-sight to the servers (e.g. a jump host in a peered hub, or
+> Azure Cloud Shell configured with VNet access). The Fabric pipeline path needs no
+> extra infrastructure and is the recommended approach for this demo.
 
 The Shortcut reference file in blob storage is uploaded separately by
 `scripts\Deploy-Azure.ps1` / `scripts\Seed-Data.ps1` (storage is public, so that
