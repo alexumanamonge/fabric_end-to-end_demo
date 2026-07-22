@@ -73,8 +73,13 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
     return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
 
 
+# Git-created Lakehouses are schema-enabled (default schema "dbo"); tables live
+# under Tables/<schema>/<name>.
+TABLE_SCHEMA = "dbo"
+
+
 def delta_count(lakehouse_name: str, table_name: str) -> int:
-    return spark.read.format("delta").load(lakehouse_path(lakehouse_name, f"Tables/{table_name}")).count()
+    return spark.read.format("delta").load(lakehouse_path(lakehouse_name, f"Tables/{TABLE_SCHEMA}/{table_name}")).count()
 
 
 display(

@@ -61,9 +61,13 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
     return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
 
 
-BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, "Tables")
+# Git-created Lakehouses are schema-enabled (default schema "dbo"). Delta tables
+# live under Tables/<schema>/<name>; reading/writing the non-schema Tables/<name>
+# leaves dbo empty and breaks the SQL endpoint / Direct Lake.
+TABLE_SCHEMA = "dbo"
+BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, f"Tables/{TABLE_SCHEMA}")
 REGIONS_SHORTCUT_DIR = lakehouse_path(BRONZE_LAKEHOUSE, "Files/shortcuts/regions")
-SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, "Tables")
+SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, f"Tables/{TABLE_SCHEMA}")
 
 MISSING_HINT = (
     "Bronze data not found. Wire the ingestion patterns (docs/ingestion-*.md) "

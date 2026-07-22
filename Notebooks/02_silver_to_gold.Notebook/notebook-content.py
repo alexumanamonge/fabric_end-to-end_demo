@@ -56,8 +56,12 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
     return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
 
 
-SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, "Tables")
-GOLD_TABLES = lakehouse_path(GOLD_LAKEHOUSE, "Tables")
+# Git-created Lakehouses are schema-enabled (default schema "dbo"). Gold tables
+# must land under Tables/<schema>/<name> so the Direct Lake semantic model can
+# frame them; the non-schema Tables/<name> path leaves dbo empty and fails.
+TABLE_SCHEMA = "dbo"
+SILVER_TABLES = lakehouse_path(SILVER_LAKEHOUSE, f"Tables/{TABLE_SCHEMA}")
+GOLD_TABLES = lakehouse_path(GOLD_LAKEHOUSE, f"Tables/{TABLE_SCHEMA}")
 
 # --- Read required Silver tables ---
 customer_orders = spark.read.format("delta").load(f"{SILVER_TABLES}/customer_orders")

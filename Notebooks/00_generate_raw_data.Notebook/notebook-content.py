@@ -61,7 +61,12 @@ def lakehouse_path(lakehouse_name: str, relative_path: str) -> str:
     return f"abfss://{current_workspace_name()}@onelake.dfs.fabric.microsoft.com/{lakehouse_name}.Lakehouse/{relative_path}"
 
 
-BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, "Tables")
+# Git-created Lakehouses are schema-enabled (default schema "dbo"). Delta tables
+# must live under Tables/<schema>/<name> so the SQL analytics endpoint and Direct
+# Lake resolve them; writing to the non-schema Tables/<name> leaves dbo empty and
+# breaks Direct Lake framing.
+TABLE_SCHEMA = "dbo"
+BRONZE_TABLES = lakehouse_path(BRONZE_LAKEHOUSE, f"Tables/{TABLE_SCHEMA}")
 REGIONS_SHORTCUT_DIR = lakehouse_path(BRONZE_LAKEHOUSE, "Files/shortcuts/regions")
 
 SEED = 20260714
